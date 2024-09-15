@@ -1,0 +1,37 @@
+/* Thanks LittleFox <littlefox@lf-net.org> <3 */
+
+#ifndef _BITMAP_H_INCLUDED
+#define _BITMAP_H_INCLUDED
+
+#include <stdint.h>
+#include <stdbool.h>
+
+//! Type for a single entry in the array.
+typedef uint8_t* bitmap_t;
+
+//! Return the index in the bitmap array for the given bitmap index
+static inline uint64_t bitmap_idx(uint64_t entry) {
+    return entry / 8;
+}
+
+//! Return the bitmask for the given bitmap index
+static inline uint8_t bitmap_bit(uint64_t entry) {
+    return 1 << (entry % 8);
+}
+
+//! Retrieve state of the given entry from bitmap
+static inline bool bitmap_get(bitmap_t bitmap, uint64_t entry) {
+    return (bitmap[bitmap_idx(entry)] & bitmap_bit(entry)) != 0;
+}
+
+//! Set given entry in bitmap
+static inline void bitmap_set(bitmap_t bitmap, uint64_t entry) {
+    bitmap[bitmap_idx(entry)] |= bitmap_bit(entry);
+}
+
+//! Unset given entry in bitmap
+static inline void bitmap_clear(bitmap_t bitmap, uint64_t entry) {
+    bitmap[bitmap_idx(entry)] &= ~bitmap_bit(entry);
+}
+
+#endif
