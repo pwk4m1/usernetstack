@@ -16,7 +16,6 @@
 
 #include "bitmap.h"
 #include "csum.h"
-#include "data_util.h"
 
 // This bitmask contains those ip id values that are
 // currently in use.
@@ -97,42 +96,63 @@ static bool allocate_ipv4_id(struct iphdr *iph) {
     return stat;
 }
 
-/* Allocate and populate a default non-priority IPv4 header for user.
+/* Allocate IPv4 header when non-standard header is required.
  *
  * @param struct sockaddr_in *src -- Pointer to source sockaddr_in struct
  * @param struct sockaddr_in *dst -- Pointer to destination sockaddr_in struct
- * @param uint8_t proto           -- Protocol identification number
+ * @param uint8_t tos             -- Type of service value
+ * @param uint16_t f_off_vcf      -- Fragment offset and control bits
+ * @param uint8_t ttl             -- Time to live
+ * @param uint8_t proto           -- Protocol
+ * @param uint8_t option_type     -- Type field for additional IPv4 options or 0 if unused
+ * @param uint8_t option_len      -- Length of additional option octets or 0 if unused 
+ * @param uint8_t *option_buf     -- Pointer to remaining `option_len` options or 0 if unused
  * @param uint16_t tlen           -- Amount of bytes in next protocol header
  *                                   and payload we're delivering
  * @return pointer to populated ipv4 header structure
  */
-struct iphdr *create_std_ipv4_hdr(struct sockaddr_in *src, 
-        struct sockaddr_in *dst, uint8_t proto, uint16_t tlen) {
-    struct iphdr *ret = calloc(1, sizeof(struct iphdr));
-    assert(ret && "Failed to allocate memory for ip header");
-    memset(ret, 0, sizeof(struct iphdr));
+struct iphdr *create_ipv4_hdr(struct sockaddr_in *src,
+        struct sockaddr_in *dst, uint8_t tos, uint16_t f_off_vcf,
+        uint8_t ttl, uint8_t proto, uint8_t option_type, uint8_t option_len,
+        uint8_t *option_buf, uint16_t tlen) 
+{
+    size_t len = sizeof(struct iphdr);
+    if (option_type) {
+        len++;
+    }
+    if (option_len) {
+        len++;
+        len += option_len;
+    }
+    if (len % 4) {
+        len += ((len % 4) + (4 - (len % 4)));
+    }
+    uint8_t ihl = len / 4;
+    void *hdr = malloc(len);
 
-    ret->version = 4; 
-    ret->ihl = 5;     
-    ret->tos = 16;
-    ret->tot_len = sizeof(struct iphdr) + tlen;
-    ret->frag_off = 0;
-    ret->ttl = 64;
-    ret->protocol = proto;
-    ret->saddr = src->sin_addr.s_addr;
-    ret->daddr = dst->sin_addr.s_addr;
-    ret->check = 0;
-    allocate_ipv4_id(ret);
+    struct iphdr *iph = (struct iphdr *)hdr;
+    iph->version = 4;
+    iph->ihl = ihl;
+    iph->tos = tos;
+    iph->tot_len = len + tlen;
+    iph->frag_off = (f_off_vcf) & 0xCF;
+    iph->ttl = ttl;
+    iph->protocol = proto;
+    iph->saddr = src->sin_addr.s_addr;
+    iph->daddr = dst->sin_addr.s_addr;
+    iph->check = 0;
+    allocate_ipv4_id(iph);
 
-    void *tmp = calloc(1, sizeof(struct iphdr));
-    assert(tmp && "Failed to allocate memory for ip header");
-    size_t stat = build_packet(&tmp, (void *)ret, sizeof(struct iphdr), 0, 0, 0, 0);
-    assert(stat == sizeof(struct iphdr) && "BUG at build_packet() function");
+    if (option_type) {
+        memcpy(hdr+sizeof(struct iphdr), &option_type, 1);
+    }
+    if (option_len) {
+        memcpy(hdr+sizeof(struct iphdr)+1, &option_len, 1);
+        memcpy(hdr+sizeof(struct iphdr)+2, option_buf, option_len);
+    }
 
-    ret->check = csum(tmp, stat);
-    memset(tmp, 0, sizeof(struct iphdr));
-    free(tmp);
+    iph->check = csum(hdr, len);
 
-    return ret;
+    return hdr;
 }
 
