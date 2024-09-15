@@ -135,7 +135,7 @@ struct iphdr *create_ipv4_hdr(struct sockaddr_in *src,
     iph->ihl = ihl;
     iph->tos = tos;
     iph->tot_len = len + tlen;
-    iph->frag_off = (f_off_vcf) & 0xCF;
+    iph->frag_off = (f_off_vcf) & 0x1F;
     iph->ttl = ttl;
     iph->protocol = proto;
     iph->saddr = src->sin_addr.s_addr;
