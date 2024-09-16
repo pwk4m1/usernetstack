@@ -55,11 +55,12 @@ typedef struct {
  *
  * @param struct sockaddr_in *src -- Pointer source sockaddr_in
  * @param struct sockaddr_in *dst -- Pointer to destination sockaddr_in
+ * @param uint8_t ptcl            -- Protocol identifier
  * @param size_t len              -- Size of payload to transmit
  * @return pointer to populated ipv4_psd_hdr
  */
 ipv4_psd_hdr *craft_ipv4_psd_hdr(struct sockaddr_in *src,
-        struct sockaddr_in *dst,
+        struct sockaddr_in *dst, uint8_t ptcl,
         size_t len);
 
 /* Calculate 16 bit checksum for ip/tcp/udp. This is ones' complement of the

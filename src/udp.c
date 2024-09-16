@@ -9,7 +9,6 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <stdio.h>
 
 #include "csum.h"
 #include "ip.h"
@@ -28,7 +27,7 @@ struct udphdr *create_udp_hdr(struct sockaddr *src, struct sockaddr *dst,
 {
     uint16_t sum;
     struct udphdr *ret = (struct udphdr *)calloc(1, sizeof(struct udphdr));
-    assert(ret);
+    assert(ret && "Unable to allocate memory for UDP header\n");
 
     /* The format for both sockaddr_in and sockaddr_in6 is identical
      * for first members (family, sin_port). That's why we can use just
@@ -41,21 +40,26 @@ struct udphdr *create_udp_hdr(struct sockaddr *src, struct sockaddr *dst,
     ret->uh_sport = s_src->sin_port;
     ret->uh_ulen = htons(len + sizeof(struct udphdr));
 
+    /*
     if (s_src->sin_family == AF_INET) {
         ipv4_psd_hdr *hdr = craft_ipv4_psd_hdr(s_src, 
-                s_dst, 
+                s_dst, 17,
                 len + sizeof(struct udphdr));
         void *pkt = 0;
         size_t plen = build_packet(&pkt, hdr, sizeof(ipv4_psd_hdr),
                 ret, sizeof(struct udphdr), data, len);
-        //sum = csum(pkt, plen);
-        sum = 0; // TODO: Fix later :3
+        sum = csum(pkt, plen);
+        if (!sum) {
+            sum = ~sum;
+        }
         free(pkt);
     } else {
         // TODO: Support ipv6 lol
         abort();
     }
-    ret->uh_sum = sum;
+    ret->uh_sum = htons(sum);
+    */
+    ret->uh_sum = 0;
 
     return ret;
 }
@@ -84,7 +88,6 @@ size_t udp_send(int sockfd, int family, char *saddr, char *daddr,
     size_t plen = build_packet(&packet, iphr, sizeof(struct iphdr), 
             uhdr, sizeof(struct udphdr),
             data, len);
-    iphr->check = csum(packet, plen);
     size_t stat = sendto(sockfd, packet, plen, 0, dst, sizeof(struct sockaddr));
     free(packet);
     return stat;

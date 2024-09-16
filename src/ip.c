@@ -129,13 +129,14 @@ struct iphdr *create_ipv4_hdr(struct sockaddr_in *src,
     }
     uint8_t ihl = len / 4;
     void *hdr = malloc(len);
+    memset(hdr, 0, len);
 
     struct iphdr *iph = (struct iphdr *)hdr;
     iph->version = 4;
     iph->ihl = ihl;
     iph->tos = tos;
-    iph->tot_len = len + tlen;
-    iph->frag_off = f_off_vcf;
+    iph->tot_len = htons(len + tlen);
+    iph->frag_off = htons(f_off_vcf);
     iph->ttl = ttl;
     iph->protocol = proto;
     iph->saddr = src->sin_addr.s_addr;
@@ -150,8 +151,7 @@ struct iphdr *create_ipv4_hdr(struct sockaddr_in *src,
         memcpy(hdr+sizeof(struct iphdr)+1, &option_len, 1);
         memcpy(hdr+sizeof(struct iphdr)+2, option_buf, option_len);
     }
-
-    iph->check = csum(hdr, len);
+    iph->check = htons(csum((uint16_t *)hdr, 20));
 
     return hdr;
 }

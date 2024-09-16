@@ -83,7 +83,7 @@ size_t build_packet(void **pkt, void *iphdr, size_t iplen,
 {
     size_t total = iplen + ptclen + len;
     unsigned char *ret = malloc(total);
-    assert(ret);
+    assert(ret && "Unable to allocate memory for full packet\n");
 
     memcpy(ret, iphdr, iplen);
     memcpy(ret+iplen, ptclhdr, ptclen);
