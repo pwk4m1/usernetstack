@@ -14,52 +14,23 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-/* Various state definitions a connection can be in. 
+/* net_socket structure holds information about a specific 
+ * socket in use. This structure is not intended to be used
+ * by users directly, but rather via different helper functions.
+ * However, idk, go ahead and do whatever you wish with it.
  *
- * @param idle -- There's nothing happening regarding this connection right now
- * @param listening -- Waiting for 3-way handshake from remote peer
- * @param connecting -- Performing a 3-way handshake with remote peer
- * @param connected -- Connected over TCP to a remote peer 
- * @param disconnected -- TCP stream was created, but it's been disconnected
- * @param waiting -- Waiting for remote peer to send us datagrams
- * @param reading -- Reading a datagram from remote peer
- * @param writing -- Sending a datagram to remote peer
- */
-enum CONNECTION_STATUS {
-    IDLE,
-    LISTENING,
-    CONNECTING,
-    CONNECTED,
-    DISCONNECTED,
-    WAITING,
-    READING,
-    WRITING
-};
-
-/* connection_data structure holds information about a specific
- * connection, regardless of if it's a stream connection (TCP) that lives
- * long, or just simple ICMP or UDP or any other form of datagram that's
- * sent once and then forgotten about.
+ * @member int raw_sockfd   -- Socket file descriptor to use
+ * @member int family       -- Socket family (AF_INET, AF_INET6, ...)
+ * @member int protocol     -- Protocol to use (TCP/UDP/ICMP/..)
+ * @member void *ip_options -- Pointer to ipv4 or ipv6 options
  *
- * We need to keep track of source/destination IP addresses, IP version,
- * connection type (priority, etc.), used source port, IP ID, status
- * of the connection (mostly relevant for TCP), etc.
- *
- * @param int sockfd                    -- Raw socket associated with this
- *                                         this connection
- * @param struct socakddr *source       -- keep track of source IP, family 
- * @param struct sockaddr *destination  -- .. destination IP, family 
- * @param uint16_t source_port          -- TCP or UDP source port
- * @param uint16_t ip_id                -- ID of this connection
- * @param enum CONNECTION_STATUS state  -- state of this connection
  */
 typedef struct {
-    struct sockaddr *source;
-    struct sockaddr *destination;
-    uint16_t source_port;
-    uint16_t ip_id;
-    enum CONNECTION_STATUS state;
-} connection_data;
+    int raw_sockfd;
+    int family;
+    int protocol;
+    void *ip_options;
+} net_socket;
 
 /* Helper to populate sockaddr_in and sockaddr_in6 structures from
  * user provided data.
@@ -67,7 +38,9 @@ typedef struct {
  * @param int family        -- AF_INET or AF_INET6
  * @param char *addr        -- Pointer to ip address as ascii string
  * @param uint16_t port     -- tcp/udp port we'll use
- * @return pointer to populated struct sockaddr
+ * @return pointer to populated struct sockaddr on success or 
+ *                              0 if family isn't supported yet.
+ *                              Set errno on error.
  */
 struct sockaddr *populate_sockaddr(int family, char *addr, uint16_t port);
 

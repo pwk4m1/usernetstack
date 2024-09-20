@@ -7,6 +7,8 @@
 #include <netinet/in.h>
 
 #include <assert.h>
+#include <errno.h>
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -53,7 +55,8 @@ struct sockaddr *populate_sockaddr(int family, char *addr, uint16_t port) {
             ret = (struct sockaddr *)build_sockaddr_in(addr, port);
             break;
         case (AF_INET6):
-//            ret = build_sockaddr_in6(addr, port);
+            ret = 0;
+            errno = ENOSYS;
             break;
     }
     return ret;

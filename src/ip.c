@@ -6,6 +6,8 @@
 
 #include <assert.h>
 
+#include <errno.h>
+
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -14,6 +16,7 @@
 
 #include <threads.h>
 
+#include "ip.h"
 #include "bitmap.h"
 #include "csum.h"
 
@@ -62,7 +65,6 @@ void ip_finalise(void) {
  * @return bool true on success or false on error.
  */
 static bool allocate_ipv4_id(struct iphdr *iph) {
-    bool stat = true;
     int mutex_result;
 
     /* Try and lock mutex, if result isn't success or busy,
@@ -93,7 +95,7 @@ static bool allocate_ipv4_id(struct iphdr *iph) {
     iph->id = current_id;
     mtx_unlock(&id_map_lock);
 
-    return stat;
+    return true;
 }
 
 /* Allocate IPv4 header when non-standard header is required.
@@ -109,7 +111,8 @@ static bool allocate_ipv4_id(struct iphdr *iph) {
  * @param uint8_t *option_buf     -- Pointer to remaining `option_len` options or 0 if unused
  * @param uint16_t tlen           -- Amount of bytes in next protocol header
  *                                   and payload we're delivering
- * @return pointer to populated ipv4 header structure
+ * @return pointer to populated ipv4 header structure on success or NULL on error.
+ * Errno is set for us by malloc()
  */
 struct iphdr *create_ipv4_hdr(struct sockaddr_in *src,
         struct sockaddr_in *dst, uint8_t tos, uint16_t f_off_vcf,
@@ -129,6 +132,9 @@ struct iphdr *create_ipv4_hdr(struct sockaddr_in *src,
     }
     uint8_t ihl = len / 4;
     void *hdr = malloc(len);
+    if (!hdr) {
+        return 0;
+    }
     memset(hdr, 0, len);
 
     struct iphdr *iph = (struct iphdr *)hdr;
@@ -155,4 +161,46 @@ struct iphdr *create_ipv4_hdr(struct sockaddr_in *src,
 
     return hdr;
 }
+
+/* Helper for parsing IPv4 Type of Service value 
+ *
+ * @param struct ipv4_socket_options *sopts -- Pointer to populated ipv4_socket_options structure
+ * @return uint8_t type of service
+ */
+static inline uint8_t ipv4_parse_tos(struct ipv4_socket_options *sopts) {
+    return (sopts->pre | (sopts->low_delay << 3) | (sopts->high_throughput << 4) | (sopts->high_reliability << 5));
+}
+
+/* Transmit datagram over IPv4 protocol
+ *
+ * @param net_socket *socket        -- Pointer to populated net_socket structure
+ * @param struct sockaddr_in *src   -- Pointer to populated source sockaddr_in structure
+ * @param struct sockaddr_in *dst   -- Pointer to populated destination sockaddr_in structure
+ * @param const void *data          -- Pointer to datagram to send, including appropriate
+ *                                     protocol header
+ * @param size_t data_len           -- Length of datagram to send
+ * @return amount of bytes sent excluding ip header on success or -1 on error.
+ * Set errno on error.
+ */
+size_t ipv4_transmit_datagram(net_socket *socket, struct sockaddr_in *src,
+        struct sockaddr_in *dst, const void *data, size_t data_len)
+{
+    struct ipv4_socket_options *iopts = (struct ipv4_socket_options *)socket->ip_options;
+    uint8_t ttl = iopts->ttl;
+    uint8_t tos = ipv4_parse_tos(iopts);
+    uint16_t f_off_vcf = 0 ? 2 : iopts->no_fragment;
+
+    struct iphdr *hdr = create_ipv4_hdr(src, dst, tos, f_off_vcf, ttl, socket->protocol,
+                                            iopts->options->opt_num, 
+                                            iopts->options->option_len, 
+                                            iopts->options->option_octets, 
+                                            data_len);
+    if (!hdr) {
+        // Errno was set to us by malloc()
+        return -1;
+    }
+
+    return 0;
+}
+
 
