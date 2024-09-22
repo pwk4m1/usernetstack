@@ -142,7 +142,7 @@ struct iphdr *create_ipv4_hdr(struct sockaddr_in *src,
     iph->ihl = ihl;
     iph->tos = tos;
     iph->tot_len = htons(len + tlen);
-    iph->frag_off = htons(f_off_vcf);
+    iph->frag_off = f_off_vcf;
     iph->ttl = ttl;
     iph->protocol = proto;
     iph->saddr = src->sin_addr.s_addr;
@@ -151,13 +151,13 @@ struct iphdr *create_ipv4_hdr(struct sockaddr_in *src,
     allocate_ipv4_id(iph);
 
     if (option_type) {
-        memcpy(hdr+sizeof(struct iphdr), &option_type, 1);
+        memcpy(POINTER_ADD(void *, hdr, sizeof(struct iphdr)), &option_type, 1);
     }
     if (option_len) {
-        memcpy(hdr+sizeof(struct iphdr)+1, &option_len, 1);
-        memcpy(hdr+sizeof(struct iphdr)+2, option_buf, option_len);
+        memcpy(POINTER_ADD(void *, hdr, sizeof(struct iphdr) + 1), &option_len, 1);
+        memcpy(POINTER_ADD(void *, hdr, sizeof(struct iphdr) + 2), option_buf, option_len);
     }
-    iph->check = htons(csum((uint16_t *)hdr, 20));
+    iph->check = htons(csum((uint16_t *)hdr, len));
 
     return hdr;
 }
@@ -190,17 +190,28 @@ size_t ipv4_transmit_datagram(net_socket *socket, struct sockaddr_in *src,
     uint8_t tos = ipv4_parse_tos(iopts);
     uint16_t f_off_vcf = 0 ? 2 : iopts->no_fragment;
 
-    struct iphdr *hdr = create_ipv4_hdr(src, dst, tos, f_off_vcf, ttl, socket->protocol,
-                                            iopts->options->opt_num, 
-                                            iopts->options->option_len, 
-                                            iopts->options->option_octets, 
+    struct iphdr *hdr = create_ipv4_hdr(src, dst, tos, f_off_vcf, ttl, socket->protocol, 0, 0, 0,
                                             data_len);
     if (!hdr) {
         // Errno was set to us by malloc()
         return -1;
     }
+    uint16_t size = ntohs(hdr->tot_len);
+    void *packet = realloc(hdr, size);
+    if (!packet) {
+        // Errno was set to us by realloc()
+        free(hdr);
+        return -1;
+    }
+    hdr = (struct iphdr *)packet;
+    memcpy(POINTER_ADD(void *, hdr, size - data_len), data, data_len);
 
-    return 0;
+    size_t written = sendto(socket->raw_sockfd, packet, size, 0, (struct sockaddr *)dst, sizeof(struct sockaddr));
+    // TODO: ICMP Error checks
+
+    free(packet);
+
+    return written;
 }
 
 

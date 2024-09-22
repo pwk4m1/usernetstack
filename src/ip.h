@@ -126,11 +126,11 @@ enum IPV4_TOS_PRE {
  * @member uint16_t mtu                          -- Maximum transmission unit
  */
 struct ipv4_socket_options {
-    enum IPV4_TOS_PRE pre   : 3;
-    int low_delay           : 1;
-    int high_throughput     : 1;
-    int high_reliability    : 1;
-    int no_fragment         : 1;
+    unsigned int pre                 : 3;
+    unsigned int low_delay           : 1;
+    unsigned int high_throughput     : 1;
+    unsigned int high_reliability    : 1;
+    unsigned int no_fragment         : 1;
     uint8_t ttl;
     struct ipv4_option_structure *options;
     uint16_t mtu;

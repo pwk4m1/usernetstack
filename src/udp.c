@@ -9,8 +9,9 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 
-#include "csum.h"
+#include "data_util.h"
 #include "ip.h"
 #include "udp.h"
 
@@ -25,7 +26,6 @@
 struct udphdr *create_udp_hdr(struct sockaddr *src, struct sockaddr *dst,
         uint8_t *data, uint16_t len)
 {
-    uint16_t sum;
     struct udphdr *ret = (struct udphdr *)calloc(1, sizeof(struct udphdr));
     assert(ret && "Unable to allocate memory for UDP header\n");
 
@@ -40,25 +40,7 @@ struct udphdr *create_udp_hdr(struct sockaddr *src, struct sockaddr *dst,
     ret->uh_sport = s_src->sin_port;
     ret->uh_ulen = htons(len + sizeof(struct udphdr));
 
-    /*
-    if (s_src->sin_family == AF_INET) {
-        ipv4_psd_hdr *hdr = craft_ipv4_psd_hdr(s_src, 
-                s_dst, 17,
-                len + sizeof(struct udphdr));
-        void *pkt = 0;
-        size_t plen = build_packet(&pkt, hdr, sizeof(ipv4_psd_hdr),
-                ret, sizeof(struct udphdr), data, len);
-        sum = csum(pkt, plen);
-        if (!sum) {
-            sum = ~sum;
-        }
-        free(pkt);
-    } else {
-        // TODO: Support ipv6 lol
-        abort();
-    }
-    ret->uh_sum = htons(sum);
-    */
+    // TODO: UDP Checksums
     ret->uh_sum = 0;
 
     return ret;
@@ -66,8 +48,7 @@ struct udphdr *create_udp_hdr(struct sockaddr *src, struct sockaddr *dst,
 
 /* Send a message over UDP to a remote host
  *
- * @param int sockfd           -- Raw socket descriptor to use for sending data
- * @param int family           -- is this ipv4 or ipv6
+ * @param net_socket *sock     -- Pointer to populated net_socket structure
  * @param char *saddr          -- Pointer to string create_udp_hdr of src IP address
  * @param char *daddr          -- Pointer to string representation of dst IP address
  * @param uint16_t sport       -- UDP Port to send our data from
@@ -76,21 +57,28 @@ struct udphdr *create_udp_hdr(struct sockaddr *src, struct sockaddr *dst,
  * @param size_t len           -- Amount of bytes to send
  * @return size_t bytes sent
  */
-size_t udp_send(int sockfd, int family, char *saddr, char *daddr, 
+size_t udp_send(net_socket *sock, char *saddr, char *daddr, 
         uint16_t sport, uint16_t dport, uint8_t *data, size_t len)
 {
-    void *packet = 0;
-    struct sockaddr *src = populate_sockaddr(family, saddr, sport);
-    struct sockaddr *dst = populate_sockaddr(family, daddr, dport);
-    struct iphdr *iphr = create_std_ipv4_hdr((struct sockaddr_in *)src, 
-            (struct sockaddr_in *)dst, 17, len + sizeof(struct udphdr));
+    struct sockaddr *src = populate_sockaddr(sock->family, saddr, sport);
+    struct sockaddr *dst = populate_sockaddr(sock->family, daddr, dport);
     struct udphdr *uhdr  = create_udp_hdr(src, dst, data, len);
-    size_t plen = build_packet(&packet, iphr, sizeof(struct iphdr), 
-            uhdr, sizeof(struct udphdr),
-            data, len);
-    size_t stat = sendto(sockfd, packet, plen, 0, dst, sizeof(struct sockaddr));
-    free(packet);
-    return stat;
-}
+    if (!uhdr) {
+        return 0;
+    }
+    void *packet = realloc(uhdr, uhdr->uh_ulen);
+    if (!packet) {
+        free(uhdr);
+        return 0;
+    }
+    memcpy(POINTER_ADD(void *, uhdr, sizeof(struct udphdr)), data, len);
 
+    size_t sent = ipv4_transmit_datagram(sock, (struct sockaddr_in *)src,
+            (struct sockaddr_in *)dst, packet, (sizeof(struct udphdr) + len));
+
+    free(packet);
+    free(dst);
+    free(src);
+    return sent;
+}
 

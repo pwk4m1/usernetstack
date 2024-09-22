@@ -14,6 +14,15 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+/* Add 'addition' amount of bytes to orig_ptr, since ptr+adddition is
+ * gnu_extension for most data types
+ *
+ * @param dest_type -- type of pointer we want as a result
+ * @param orig_ptr  -- pointer to do arithmetics on
+ * @param addition  -- amount of _bytes_ we want to add to orig_ptr address
+ */
+#define POINTER_ADD(dest_type, orig_ptr, addition) ((dest_type)(((uint64_t)orig_ptr) + addition))
+
 /* net_socket structure holds information about a specific 
  * socket in use. This structure is not intended to be used
  * by users directly, but rather via different helper functions.
@@ -31,6 +40,15 @@ typedef struct {
     int protocol;
     void *ip_options;
 } net_socket;
+
+/* Open new network socket for user.
+ *
+ * @param int family   -- AF_INET/AF_INET6/...
+ * @param int protocol -- TCP/UDP/...
+ * @return pointer to populated net_socket structure on success or 0 on error.
+ * set errno on error.
+ */
+net_socket *new_socket(int family, int protocol);
 
 /* Helper to populate sockaddr_in and sockaddr_in6 structures from
  * user provided data.

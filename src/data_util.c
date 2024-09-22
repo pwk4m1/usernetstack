@@ -12,8 +12,51 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "ip.h"
 #include "data_util.h"
 
+/* Open new network socket for user.
+ *
+ * @param int family   -- AF_INET/AF_INET6/...
+ * @param int protocol -- TCP/UDP/...
+ * @return pointer to populated net_socket structure on success or 0 on error.
+ * set errno on error.
+ */
+net_socket *new_socket(int family, int protocol) {
+    if (family != AF_INET) {
+        errno = ENOSYS;
+        return 0;
+    }
+
+    net_socket *ret = calloc(1, sizeof(net_socket));
+    if (!ret) {
+        return 0;
+    }
+    memset(ret, 0, sizeof(net_socket));
+
+    int sock = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+    if (sock == -1) {
+        // errno is set to us by socket()
+        // TODO: Fix this later on when we move to packet(7) instead of sockets
+        free(ret);
+        return 0;
+    }
+    ret->raw_sockfd = sock;
+    ret->family = family;
+    ret->protocol = protocol;
+    
+    ret->ip_options = calloc(1, sizeof(struct ipv4_socket_options));
+    if (!ret->ip_options) {
+        free(ret);
+        return 0;
+    }
+    memset(ret->ip_options, 0, sizeof(struct ipv4_socket_options));
+    struct ipv4_socket_options *iopts = ret->ip_options;
+    iopts->ttl = 64;
+    iopts->high_throughput = 1;
+
+    return ret;
+}
 /* Internal helper for building sockaddr_in structure from given user input.
  *
  * @param char *addr        -- Pointer to ipv4 address as ascii string

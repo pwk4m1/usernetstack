@@ -6,6 +6,8 @@
 #include <netinet/udp.h>
 #include <stdint.h>
 
+#include "data_util.h"
+
 /* Create udp header for user.
  *
  * @param struct sockaddr *src -- Pointer to populated source sockaddr structure
@@ -19,8 +21,7 @@ struct udphdr *create_udp_hdr(struct sockaddr *src, struct sockaddr *dst,
 
 /* Send a message over UDP to a remote host
  *
- * @param int sockfd           -- Raw socket descriptor to use for sending data
- * @param int family           -- is this ipv4 or ipv6
+ * @param net_socket *sock     -- Pointer to populated net_socket structure
  * @param char *saddr          -- Pointer to string create_udp_hdr of src IP address
  * @param char *daddr          -- Pointer to string representation of dst IP address
  * @param uint16_t sport       -- UDP Port to send our data from
@@ -29,7 +30,7 @@ struct udphdr *create_udp_hdr(struct sockaddr *src, struct sockaddr *dst,
  * @param size_t len           -- Amount of bytes to send
  * @return size_t bytes sent
  */
-size_t udp_send(int sockfd, int family, char *saddr, char *daddr, 
+size_t udp_send(net_socket *sock, char *saddr, char *daddr, 
         uint16_t sport, uint16_t dport, uint8_t *data, size_t len);
 
 #endif // __NETLIB_UDP_H__
