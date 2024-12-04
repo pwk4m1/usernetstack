@@ -3,12 +3,18 @@
  */
 #include <sys/types.h>
 #include <sys/socket.h>
+
 #include <arpa/inet.h>
 #include <netinet/in.h>
+
+#include <linux/if_packet.h>
+#include <net/ethernet.h>
+#include <net/if.h>
 
 #include <assert.h>
 #include <errno.h>
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -19,22 +25,18 @@
  *
  * @param int family   -- AF_INET/AF_INET6/...
  * @param int protocol -- TCP/UDP/...
+ * @param char *iface  -- Name of network interface we're using
  * @return pointer to populated net_socket structure on success or 0 on error.
  * set errno on error.
  */
-net_socket *new_socket(int family, int protocol) {
-    if (family != AF_INET) {
-        errno = ENOSYS;
-        return 0;
-    }
+net_socket *new_socket(int family, int protocol, char *iface) {
 
     net_socket *ret = calloc(1, sizeof(net_socket));
     if (!ret) {
         return 0;
     }
-    memset(ret, 0, sizeof(net_socket));
 
-    int sock = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+    int sock = socket(AF_PACKET, SOCK_DGRAM, htons(ETH_P_ALL));
     if (sock == -1) {
         // errno is set to us by socket()
         // TODO: Fix this later on when we move to packet(7) instead of sockets
@@ -44,17 +46,38 @@ net_socket *new_socket(int family, int protocol) {
     ret->raw_sockfd = sock;
     ret->family = family;
     ret->protocol = protocol;
-    
-    ret->ip_options = calloc(1, sizeof(struct ipv4_socket_options));
-    if (!ret->ip_options) {
+
+    ret->link_saddr = calloc(1, sizeof(struct sockaddr_ll));
+    if (!ret->link_saddr) {
         free(ret);
         return 0;
     }
-    memset(ret->ip_options, 0, sizeof(struct ipv4_socket_options));
+    
+    ret->link_saddr->sll_family = AF_PACKET;
+    ret->link_saddr->sll_protocol = htons(ETH_P_ALL);
+    ret->link_saddr->sll_ifindex = if_nametoindex(iface);
+    ret->link_saddr->sll_hatype = 1;
+    ret->link_saddr->sll_pkttype = PACKET_OTHERHOST;
+    ret->link_saddr->sll_halen = ETH_ALEN;
+    memcpy(ret->link_saddr->sll_addr, "\xfa\x22\x23\x87\xa9\x9d", ETH_ALEN);
+
+    int stat = setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, iface, 4);
+    if (stat == -1) {
+        free(ret->link_saddr);
+        free(ret);
+        return 0;
+    }
+
+    ret->ip_options = calloc(1, sizeof(struct ipv4_socket_options));
+    if (!ret->ip_options) {
+        free(ret->link_saddr);
+        free(ret);
+        return 0;
+    }
     struct ipv4_socket_options *iopts = ret->ip_options;
     iopts->ttl = 64;
     iopts->high_throughput = 1;
-
+    
     return ret;
 }
 /* Internal helper for building sockaddr_in structure from given user input.

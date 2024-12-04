@@ -4,15 +4,19 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 
-#include <assert.h>
+#include <netpacket/packet.h>
+#include <net/ethernet.h>
 
-#include <errno.h>
+#include <assert.h>
 
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+
+
+#include <stdio.h>
 
 #include <threads.h>
 
@@ -96,6 +100,18 @@ static bool allocate_ipv4_id(struct iphdr *iph) {
     mtx_unlock(&id_map_lock);
 
     return true;
+}
+
+/* Free IP ID value
+ *
+ * @param uint16_t ip id to free
+ *
+ * Note, I _think_ I don't need to lock the mutex, it shouldn't matter
+ * that we're freeing this ID value whilst some other process is going on to
+ * allocate a new ID for themselves.
+ */
+static inline void free_ipv4_id(uint16_t id) {
+    bitmap_clear(used_ip_id_values, id);
 }
 
 /* Allocate IPv4 header when non-standard header is required.
@@ -206,12 +222,31 @@ size_t ipv4_transmit_datagram(net_socket *socket, struct sockaddr_in *src,
     hdr = (struct iphdr *)packet;
     memcpy(POINTER_ADD(void *, hdr, size - data_len), data, data_len);
 
-    size_t written = sendto(socket->raw_sockfd, packet, size, 0, (struct sockaddr *)dst, sizeof(struct sockaddr));
+    printf("Calling sendto()\n");
+    size_t written = sendto(socket->raw_sockfd, packet, size, 0, 
+            (struct sockaddr *)socket->link_saddr, sizeof(struct sockaddr_ll));
     // TODO: ICMP Error checks
 
+    free_ipv4_id(hdr->id);
     free(packet);
 
     return written;
 }
+
+/* Receive datagram over IPv4 protocol
+ *
+ * @param net_socket *socket        -- Pointer to populated net_socket structure
+ * @param const void *dst           -- Pointer to memory where we'll write received data to
+ * @param size_t r_len              -- How many bytes do we want to receive *including* IPv4 header
+ * @return size_t amount of bytes received on success or -1 on error.
+ *                Set errno on error
+ */
+//size_t ipv4_receive_datagram(net_socket *socket, struct sockaddr_in *caddr, void *dst, size_t r_len) 
+//{
+//    return ret;
+//}
+
+
+
 
 

@@ -181,10 +181,20 @@ inline struct iphdr *create_std_ipv4_hdr(struct sockaddr_in *src,
  * @param const void *data          -- Pointer to datagram to send, including appropriate
  *                                     protocol header
  * @param size_t data_len           -- Length of datagram to send
- * @return amount of bytes sent excluding ip header on success or -1 on error.
+ * @return size_t amount of bytes sent excluding ip header on success or -1 on error.
  * Set errno on error.
  */
 size_t ipv4_transmit_datagram(net_socket *socket, struct sockaddr_in *src,
         struct sockaddr_in *dst, const void *data, size_t data_len);
+
+/* Receive datagram over IPv4 protocol
+ *
+ * @param net_socket *socket        -- Pointer to populated net_socket structure
+ * @param const void *dst           -- Pointer to memory where we'll write received data to
+ * @param size_t r_len              -- How many bytes do we want to receive *including* IPv4 header
+ * @return size_t amount of bytes received on success or -1 on error.
+ *                Set errno on error
+ */
+size_t ipv4_receive_datagram(net_socket *socket, void *dst, size_t r_len);
 
 #endif // __NETLIB_IP_H__
