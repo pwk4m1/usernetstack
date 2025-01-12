@@ -9,9 +9,26 @@
 
 #include <sys/types.h>
 
-#include <byteswap.h>
 #include <assert.h>
 #include <stdint.h>
+
+/* Simple byteswap
+ *
+ */
+inline uint16_t bswap_16(uint16_t in) {
+    uint8_t hi = (in & 0xFF00) >> 8;
+    uint8_t lo = (in & 0x00FF);
+    uint16_t ret = (lo << 8) | hi;
+    return ret;
+}
+
+inline uint32_t bswap_32(uint32_t in) {
+    uint16_t lo = (in & 0x0000FFFF);
+    uint16_t hi = (in & 0xFFFF0000) >> 16;
+
+    uint32_t ret = (bswap_16(lo) << 16) | (bswap_16(hi));
+    return ret;
+}
 
 /* Create uint32_t ipv4 address from
  * string representation
