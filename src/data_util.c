@@ -21,25 +21,26 @@
 #include "ip.h"
 #include "data_util.h"
 
+
 /* Open new network socket for user.
  *
- * @param int family   -- AF_INET/AF_INET6/...
- * @param int protocol -- TCP/UDP/...
- * @param char *iface  -- Name of network interface we're using
+ * @param int family          -- AF_INET/AF_INET6/...
+ * @param int protocol        -- TCP/UDP/...
+ * @param const uint8_t *smac -- Source Mac address
+ * @param const uint8_t *dmac -- Source Mac address
+ * @param char *iface         -- Name of network interface we're using
  * @return pointer to populated net_socket structure on success or 0 on error.
  * set errno on error.
  */
-net_socket *new_socket(int family, int protocol, char *iface) {
-
+net_socket *new_socket(int family, int protocol, uint8_t *smac, uint8_t *dmac, char *iface) {
     net_socket *ret = calloc(1, sizeof(net_socket));
     if (!ret) {
         return 0;
     }
 
-    int sock = socket(AF_PACKET, SOCK_DGRAM, htons(ETH_P_ALL));
+    int sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
     if (sock == -1) {
         // errno is set to us by socket()
-        // TODO: Fix this later on when we move to packet(7) instead of sockets
         free(ret);
         return 0;
     }
@@ -52,16 +53,38 @@ net_socket *new_socket(int family, int protocol, char *iface) {
         free(ret);
         return 0;
     }
+
+    ret->link_daddr = calloc(1, sizeof(struct sockaddr_ll));
+    if (!ret->link_saddr) {
+        free(ret->link_saddr);
+        free(ret);
+        return 0;
+    }
     
+    unsigned int iface_idx = if_nametoindex(iface);
     ret->link_saddr->sll_family = AF_PACKET;
     ret->link_saddr->sll_protocol = htons(ETH_P_ALL);
-    ret->link_saddr->sll_ifindex = if_nametoindex(iface);
+    ret->link_saddr->sll_ifindex = iface_idx;
     ret->link_saddr->sll_hatype = 1;
     ret->link_saddr->sll_pkttype = PACKET_OTHERHOST;
     ret->link_saddr->sll_halen = ETH_ALEN;
-    memcpy(ret->link_saddr->sll_addr, "\xfa\x22\x23\x87\xa9\x9d", ETH_ALEN);
+    // 56:94:9d:02:2e:43
+    // memcpy(ret->link_saddr->sll_addr, "\x56\x94\x9d\x02\x2e\x43", ETH_ALEN);
+    //
+    memcpy(ret->link_saddr->sll_addr, smac, ETH_ALEN);
 
-    int stat = setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, iface, 4);
+    ret->link_daddr->sll_family = AF_PACKET;
+    ret->link_daddr->sll_protocol = htons(ETH_P_ALL);
+    ret->link_daddr->sll_ifindex = iface_idx;
+    ret->link_daddr->sll_hatype = 1;
+    ret->link_daddr->sll_pkttype = PACKET_OTHERHOST;
+    ret->link_daddr->sll_halen = ETH_ALEN;
+    // fa:22:23:87:a9:9d 
+    // memcpy(ret->link_daddr->sll_addr, "\xfa\x22\x23\x87\xa9\x9d", ETH_ALEN);
+    //
+    memcpy(ret->link_daddr->sll_addr, dmac, ETH_ALEN);
+
+    int stat = setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, iface, strlen(iface));
     if (stat == -1) {
         free(ret->link_saddr);
         free(ret);
@@ -74,12 +97,14 @@ net_socket *new_socket(int family, int protocol, char *iface) {
         free(ret);
         return 0;
     }
+
     struct ipv4_socket_options *iopts = ret->ip_options;
     iopts->ttl = 64;
     iopts->high_throughput = 1;
     
     return ret;
 }
+
 /* Internal helper for building sockaddr_in structure from given user input.
  *
  * @param char *addr        -- Pointer to ipv4 address as ascii string

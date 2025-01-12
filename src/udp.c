@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "csum.h"
 #include "data_util.h"
 #include "ip.h"
 #include "udp.h"
@@ -41,7 +42,7 @@ struct udphdr *create_udp_hdr(struct sockaddr *src, struct sockaddr *dst,
     ret->uh_ulen = htons(len + sizeof(struct udphdr));
 
     // TODO: UDP Checksums
-    ret->uh_sum = 0;
+    ret->uh_sum = htons(0x0000);
 
     return ret;
 }

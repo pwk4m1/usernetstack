@@ -20,6 +20,7 @@
 
 #include <threads.h>
 
+#include "eth.h"
 #include "ip.h"
 #include "bitmap.h"
 #include "csum.h"
@@ -173,7 +174,7 @@ struct iphdr *create_ipv4_hdr(struct sockaddr_in *src,
         memcpy(POINTER_ADD(void *, hdr, sizeof(struct iphdr) + 1), &option_len, 1);
         memcpy(POINTER_ADD(void *, hdr, sizeof(struct iphdr) + 2), option_buf, option_len);
     }
-    iph->check = htons(csum((uint16_t *)hdr, len));
+    iph->check = csum((uint16_t *)hdr, len);
 
     return hdr;
 }
@@ -185,6 +186,12 @@ struct iphdr *create_ipv4_hdr(struct sockaddr_in *src,
  */
 static inline uint8_t ipv4_parse_tos(struct ipv4_socket_options *sopts) {
     return (sopts->pre | (sopts->low_delay << 3) | (sopts->high_throughput << 4) | (sopts->high_reliability << 5));
+}
+
+static inline void log_pkt(void *packet, size_t size) {
+    FILE *f = fopen("log.bin", "wb");
+    fwrite(packet, size, 1, f);
+    fclose(f);
 }
 
 /* Transmit datagram over IPv4 protocol
@@ -206,28 +213,36 @@ size_t ipv4_transmit_datagram(net_socket *socket, struct sockaddr_in *src,
     uint8_t tos = ipv4_parse_tos(iopts);
     uint16_t f_off_vcf = 0 ? 2 : iopts->no_fragment;
 
-    struct iphdr *hdr = create_ipv4_hdr(src, dst, tos, f_off_vcf, ttl, socket->protocol, 0, 0, 0,
-                                            data_len);
-    if (!hdr) {
+    struct ethhdr *eth_hdr = create_eth_hdr(socket, ETH_P_IP);
+    struct iphdr *ip_hdr = create_ipv4_hdr(src, dst, tos, f_off_vcf, ttl, socket->protocol, 
+            0, 0, 0, data_len);
+    if (!ip_hdr) {
         // Errno was set to us by malloc()
         return -1;
     }
-    uint16_t size = ntohs(hdr->tot_len);
-    void *packet = realloc(hdr, size);
+
+    uint16_t size = ntohs(ip_hdr->tot_len) + sizeof(struct ethhdr);
+    printf("size: %d\n", size);
+    void *packet = calloc(1, size);
     if (!packet) {
         // Errno was set to us by realloc()
-        free(hdr);
+        free(ip_hdr);
         return -1;
     }
-    hdr = (struct iphdr *)packet;
-    memcpy(POINTER_ADD(void *, hdr, size - data_len), data, data_len);
+    memcpy(packet, eth_hdr, sizeof(struct ethhdr));
+    memcpy(POINTER_ADD(void *, packet, sizeof(struct ethhdr)), 
+            ip_hdr, sizeof(struct iphdr));
+
+    memcpy(POINTER_ADD(void *, packet, 
+                (sizeof(struct ethhdr) + (sizeof(struct iphdr)))), data, data_len);
 
     printf("Calling sendto()\n");
+    log_pkt(packet, size);
     size_t written = sendto(socket->raw_sockfd, packet, size, 0, 
             (struct sockaddr *)socket->link_saddr, sizeof(struct sockaddr_ll));
     // TODO: ICMP Error checks
 
-    free_ipv4_id(hdr->id);
+    free_ipv4_id(ip_hdr->id);
     free(packet);
 
     return written;

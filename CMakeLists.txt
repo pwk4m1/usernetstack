@@ -7,6 +7,7 @@ add_executable(netlib
     src/data_util.c
     src/udp.c
     src/ip.c
+    src/eth.c
 )
 
 target_compile_options(netlib PRIVATE

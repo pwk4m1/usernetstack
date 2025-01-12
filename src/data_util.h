@@ -41,19 +41,22 @@ typedef struct {
     int family;
     int protocol;
     struct sockaddr_ll *link_saddr;
+    struct sockaddr_ll *link_daddr;
     void *ip_options;
     void *proto_options;
 } net_socket;
 
 /* Open new network socket for user.
  *
- * @param int family   -- AF_INET/AF_INET6/...
- * @param int protocol -- TCP/UDP/...
- * @param char *iface  -- Name of network interface we're using
+ * @param int family          -- AF_INET/AF_INET6/...
+ * @param int protocol        -- TCP/UDP/...
+ * @param const uint8_t *smac -- Source Mac address
+ * @param const uint8_t *dmac -- Source Mac address
+ * @param char *iface         -- Name of network interface we're using
  * @return pointer to populated net_socket structure on success or 0 on error.
  * set errno on error.
  */
-net_socket *new_socket(int family, int protocol, char *iface);
+net_socket *new_socket(int family, int protocol, uint8_t *smac, uint8_t *dmac, char *iface);
 
 /* Helper to populate sockaddr_in and sockaddr_in6 structures from
  * user provided data.
