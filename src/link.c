@@ -7,6 +7,7 @@
 #include <sys/types.h>
 
 #include <eth.h>
+#include <slip.h>
 
 #include <link.h>
 #include <socket.h>
@@ -28,8 +29,7 @@ size_t link_tx(net_socket *sock, const void *data, size_t size) {
         ret = eth_transmit(sock, data, size);
         break;
     case (SLIP):
-        // TODO
-        //
+        ret = slip_transmit(0x02f8, data, size);
         break;
     default:
         break;

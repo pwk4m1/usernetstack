@@ -10,6 +10,7 @@ add_executable(netlib
     src/eth.c
     src/socket.c
     src/link.c
+    src/slip.c
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "LF-OS")

@@ -10,22 +10,22 @@
 #include <eth.h>
 #include <link.h>
 
+
 /* Create ethernet header with given source and destination MAC addresses
  * and protocol type
  *
- * @param net_socket *socket -- Socket we're working with
- * @param uint16_t proto     -- Protocol to use
+ * @param uint8_t *src      -- Pointer to source mac address
+ * @param uint8_t *dst      -- Pointer to destination mac address
+ * @param uint16_t proto    -- Protocol to use
  * @return pointer to populated ethernet header
  */
-eth_hdr *create_eth_hdr(net_socket *socket, uint16_t proto) {
+eth_hdr *create_eth_hdr(uint8_t *src, uint8_t *dst, uint16_t proto) {
     eth_hdr *ret = (eth_hdr *)calloc(1, sizeof(eth_hdr));
     if (!ret) {
         return ret;
     }
-    link_options *link = (link_options *)socket->link_options;
-
-    memcpy(ret->mac_src, link->src_mac, 6);
-    memcpy(ret->mac_dst, link->dst_mac, 6);
+    memcpy(ret->mac_src, src, 6);
+    memcpy(ret->mac_dst, dst, 6);
     ret->ptcl = htons(proto);
     return ret;
 }
@@ -40,22 +40,19 @@ eth_hdr *create_eth_hdr(net_socket *socket, uint16_t proto) {
  */
 size_t eth_transmit(net_socket *sock, const void *data, size_t len) {
     uint16_t sent = -1;
-    eth_hdr *eth = create_eth_hdr(sock, 0x0800);
-    if (!eth) {
-        return sent;
-    }
+    link_options *link = (link_options *)sock->link_options;
 
     void *packet = calloc(1, (sizeof(eth_hdr) + len));
     if (!packet) {
         return sent;
     }
-    memcpy(packet, eth, sizeof(eth_hdr));
+
+    memcpy(packet, link->proto.eth_header, sizeof(eth_hdr));
     memcpy(POINTER_ADD(void *, packet, sizeof(eth_hdr)), data, len);
 
     sent = transmit(sock, (const void *)packet, (sizeof(eth_hdr) + len));
 
     free(packet);
-    free(eth);
     return sent;
 }
 

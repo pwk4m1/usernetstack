@@ -33,9 +33,6 @@ net_socket *new_socket(int family, int protocol, int type,
     ret->family = family;
     ret->protocol = protocol;
 
-//    ret->mac_src = smac;
-//    ret->mac_dst = dmac;
-
     ret->ip_options = calloc(1, sizeof(ipv4_socket_options));
     if (!ret->ip_options) {
         free(ret);
@@ -54,8 +51,15 @@ net_socket *new_socket(int family, int protocol, int type,
     }
     link_options *link = (link_options *)ret->link_options;
     link->type = type;
-    link->src_mac = smac;
-    link->dst_mac = dmac;
+
+    switch (type) {
+    case (ETH):
+        link->proto.eth_header = create_eth_hdr(smac, dmac, 0x0800);
+        break;
+    case (SLIP):
+        link->proto.slip_port = 0x02f8;
+        break;
+    }
 
     return ret;
 }

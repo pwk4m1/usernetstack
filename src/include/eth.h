@@ -26,11 +26,12 @@ typedef struct __attribute__((packed)) {
 /* Create ethernet header with given source and destination MAC addresses
  * and protocol type
  *
- * @param net_socket *socket -- Socket we're working with
+ * @param uint8_t *src      -- Pointer to source mac address
+ * @param uint8_t *dst      -- Pointer to destination mac address
  * @param uint16_t proto    -- Protocol to use
  * @return pointer to populated ethernet header
  */
-eth_hdr *create_eth_hdr(net_socket *socket, uint16_t proto);
+eth_hdr *create_eth_hdr(uint8_t *src, uint8_t *dst, uint16_t proto);
 
 /* Transmit datagram over ethernet.
  *

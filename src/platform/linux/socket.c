@@ -46,14 +46,13 @@ size_t transmit(net_socket *sock, const void *data, size_t len) {
     struct sockaddr_ll saddr;
     link_options *link = (link_options *)sock->link_options;
 
-    memcpy(saddr.sll_addr, link->src_mac, 6);
+    memcpy(saddr.sll_addr, link->proto.eth_header->mac_src, 6);
     saddr.sll_family   = AF_PACKET;
     saddr.sll_protocol = htons(ETH_P_ALL);
     saddr.sll_ifindex  = if_nametoindex(sock->iface);
     saddr.sll_hatype   = 1;
     saddr.sll_pkttype  = PACKET_OTHERHOST;
     saddr.sll_halen    = ETH_ALEN;
-
 
     return sendto(sock->raw_sockfd, data, len, 0, 
             (const struct sockaddr *)&saddr, sizeof(struct sockaddr_ll));
