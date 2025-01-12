@@ -2,73 +2,38 @@
  *
  */
 #include <sys/types.h>
-#include <sys/socket.h>
-
-#include <arpa/inet.h>
-#include <netinet/in.h>
-
-#include <linux/if_packet.h>
-#include <net/ethernet.h>
-#include <net/if.h>
-
-#include <assert.h>
-#include <errno.h>
 
 #include <stdio.h>
+
 #include <stdlib.h>
 #include <string.h>
 
 #include <data_util.h>
 
-
-/* Internal helper for building sockaddr_in structure from given user input.
+/* Create uint32_t ipv4 address from
+ * string representation
  *
- * @param char *addr        -- Pointer to ipv4 address as ascii string
- * @param uint16_t port     -- tcp/udp port we'll use
- * @return Pointer to a populated sockaddr_in structure
+ * @param char *ip -- Pointer to IP address string
+ * @return uint32_t address
  */
-struct sockaddr_in *build_sockaddr_in(char *addr, uint16_t port) {
-    struct sockaddr_in *ret = calloc(1, sizeof(struct sockaddr_in));
-    assert(ret);
-    memset(ret, 0, sizeof(struct sockaddr_in));
-
-    ret->sin_family = AF_INET;
-    ret->sin_addr.s_addr = inet_addr((const char *)addr);
-    ret->sin_port = htons(port);
-
-    return ret;
-}
-
-/* Internal helper for building sockaddr_in6 structure from given user input.
- *
- * @param uint8_t *addr     -- Pointer to ipv4 address as ascii string
- * @param uint16_t port     -- tcp/udp port we'll use
- *
- */
-
-/* Helper to populate sockaddr_in and sockaddr_in6 structures from
- * user provided data.
- *
- * @param int family        -- AF_INET or AF_INET6
- * @param char *addr        -- Pointer to ip address as ascii string
- * @param uint16_t port     -- tcp/udp port we'll use
- * @return pointer to populated struct sockaddr on success, or 0 if family
- *         isn't supported
- */
-struct sockaddr *populate_sockaddr(int family, char *addr, uint16_t port) {
-    struct sockaddr *ret = NULL;
-    switch (family) {
-        case (AF_INET):
-            ret = (struct sockaddr *)build_sockaddr_in(addr, port);
-            break;
-        case (AF_INET6):
-            ret = 0;
-            errno = ENOSYS;
-            break;
+uint32_t inet_addr(const char *ip) {
+    uint32_t ret = 0;
+    char *tmp = strdup(ip);
+    char *tok = strtok(tmp, ".");
+    if (!tok) {
+        return 0;
     }
+
+    for (int i = 0; i < 4; i++) {
+        uint8_t val = atoi(tok);
+        printf("%x ", val);
+        ret |= (val << (i * 8));
+        tok = strtok(NULL, ".");
+    }
+    free(tmp);
+    printf("\nAddress: %s => %x\n", ip, ret);
     return ret;
 }
-
 
 /* Helper to create continuous packet from various protocol header structures
  * and user-provided payload.

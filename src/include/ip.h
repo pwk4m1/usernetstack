@@ -3,8 +3,6 @@
 #define __NETLIB_IP_H__
 
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 
 #include <stdint.h>
 
@@ -177,8 +175,8 @@ typedef struct __attribute__((packed)) {
 
 /* Allocate IPv4 header when non-standard header is required.
  *
- * @param struct sockaddr_in *src -- Pointer to source sockaddr_in struct
- * @param struct sockaddr_in *dst -- Pointer to destination sockaddr_in struct
+ * @param uint32_t src -- Pointer to source sockaddr_in struct
+ * @param uint32_t dst -- Pointer to destination sockaddr_in struct
  * @param uint8_t tos             -- Type of service value
  * @param uint16_t f_off_vcf      -- Fragment offset and control bits
  * @param uint8_t ttl             -- Time to live
@@ -190,8 +188,8 @@ typedef struct __attribute__((packed)) {
  *                                   and payload we're delivering
  * @return pointer to populated ipv4 header structure on success or 0 on error
  */
-ipv4_hdr *create_ipv4_hdr(struct sockaddr_in *src,
-        struct sockaddr_in *dst, uint8_t tos, uint16_t f_off_vcf,
+ipv4_hdr *create_ipv4_hdr(uint32_t src,
+        uint32_t dst, uint8_t tos, uint16_t f_off_vcf,
         uint8_t ttl, uint8_t proto, uint8_t option_type, uint8_t option_len,
         uint8_t *option_buf, uint16_t tlen);
 
@@ -200,31 +198,31 @@ ipv4_hdr *create_ipv4_hdr(struct sockaddr_in *src,
  * Unless there's a need for high priority delay, reliability or throughput, this
  * is likely the type of routine packet header you want.
  *
- * @param struct sockaddr_in *src -- Pointer to source sockaddr_in struct
- * @param struct sockaddr_in *dst -- Pointer to destination sockaddr_in struct
+ * @param uint32_t src            -- Source address to use
+ * @param uint32_t dst            -- Destination address to use
  * @param uint8_t proto           -- Protocol identification number
  * @param uint16_t tlen           -- Amount of bytes in next protocol header
  *                                   and payload we're delivering
  * @return pointer to populated ipv4 header structure
  */
-inline ipv4_hdr *create_std_ipv4_hdr(struct sockaddr_in *src, 
-        struct sockaddr_in *dst, uint8_t proto, uint16_t tlen) {
+inline ipv4_hdr *create_std_ipv4_hdr(uint32_t src, uint32_t dst, 
+        uint8_t proto, uint16_t tlen) {
     return create_ipv4_hdr(src, dst, 16, 0, 64, proto, 0, 0, 0, tlen);
 }
 
 /* Transmit datagram over IPv4 protocol
  *
- * @param net_socket *socket        -- Pointer to populated net_socket structure
- * @param struct sockaddr_in *src   -- Pointer to populated source sockaddr_in structure
- * @param struct sockaddr_in *dst   -- Pointer to populated destination sockaddr_in structure
- * @param const void *data          -- Pointer to datagram to send, including appropriate
- *                                     protocol header
- * @param size_t data_len           -- Length of datagram to send
+ * @param net_socket *socket -- Pointer to populated net_socket structure
+ * @param uint32_t src       -- Source address to use
+ * @param uint32_t dst       -- Destination address to use
+ * @param const void *data   -- Pointer to datagram to send, including appropriate
+ *                              protocol header
+ * @param size_t data_len    -- Length of datagram to send
  * @return size_t amount of bytes sent excluding ip header on success or -1 on error.
  * Set errno on error.
  */
-size_t ipv4_transmit_datagram(net_socket *socket, struct sockaddr_in *src,
-        struct sockaddr_in *dst, const void *data, size_t data_len);
+size_t ipv4_transmit_datagram(net_socket *socket, uint32_t src,
+        uint32_t dst, const void *data, size_t data_len);
 
 /* Receive datagram over IPv4 protocol
  *

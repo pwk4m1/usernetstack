@@ -13,6 +13,7 @@
 
 #include <unistd.h>
 
+#include <data_util.h>
 #include <ip.h>
 #include <socket.h>
 
@@ -30,6 +31,14 @@ int raw_socket(const char *iface) {
         return stat;
     }
     return sock;
+}
+
+#include <stdio.h>
+
+static void log(const void *d, size_t l) {
+    FILE *f = fopen("packet.bin", "wb");
+    fwrite(d, l, 1, f);
+    fclose(f);
 }
 
 /* Send up to size_t bytes of data
@@ -51,6 +60,7 @@ size_t transmit(net_socket *sock, const void *data, size_t len) {
     saddr.sll_pkttype  = PACKET_OTHERHOST;
     saddr.sll_halen    = ETH_ALEN;
 
+    log(data, len);
 
     return sendto(sock->raw_sockfd, data, len, 0, (const struct sockaddr *)&saddr, sizeof(struct sockaddr_ll));
 }

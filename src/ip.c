@@ -10,10 +10,11 @@
 
 #include <threads.h>
 
-#include <eth.h>
-#include <ip.h>
 #include <bitmap.h>
 #include <csum.h>
+#include <data_util.h>
+#include <eth.h>
+#include <ip.h>
 
 // This bitmask contains those ip id values that are
 // currently in use.
@@ -107,8 +108,8 @@ static inline void free_ipv4_id(uint16_t id) {
 
 /* Allocate IPv4 header when non-standard header is required.
  *
- * @param struct sockaddr_in *src -- Pointer to source sockaddr_in struct
- * @param struct sockaddr_in *dst -- Pointer to destination sockaddr_in struct
+ * @param uint32_t src            -- Pointer to source sockaddr_in struct
+ * @param uint32_t dst            -- Pointer to destination sockaddr_in struct
  * @param uint8_t tos             -- Type of service value
  * @param uint16_t f_off          -- Fragment offset
  * @param uint8_t ttl             -- Time to live
@@ -121,8 +122,8 @@ static inline void free_ipv4_id(uint16_t id) {
  * @return pointer to populated ipv4 header structure on success or NULL on error.
  * Errno is set for us by malloc()
  */
-ipv4_hdr *create_ipv4_hdr(struct sockaddr_in *src,
-        struct sockaddr_in *dst, uint8_t tos, uint16_t f_off_vcf,
+ipv4_hdr *create_ipv4_hdr(uint32_t src,
+        uint32_t dst, uint8_t tos, uint16_t f_off_vcf,
         uint8_t ttl, uint8_t proto, uint8_t option_type, uint8_t option_len,
         uint8_t *option_buf, uint16_t tlen) 
 {
@@ -151,8 +152,8 @@ ipv4_hdr *create_ipv4_hdr(struct sockaddr_in *src,
     iph->flags_foff = htons(f_off_vcf | (DONT_FRAGMENT << 8));
     iph->ttl = ttl;
     iph->ptcl = proto;
-    iph->src = src->sin_addr.s_addr;
-    iph->dst = dst->sin_addr.s_addr;
+    iph->src = src;
+    iph->dst = dst;
     iph->csum = 0;
     allocate_ipv4_id(iph);
 
@@ -180,20 +181,20 @@ static inline uint8_t ipv4_parse_tos(ipv4_socket_options *sopts) {
 /* Transmit datagram over IPv4 protocol
  *
  * @param net_socket *socket        -- Pointer to populated net_socket structure
- * @param struct sockaddr_in *src   -- Pointer to populated source sockaddr_in structure
- * @param struct sockaddr_in *dst   -- Pointer to populated destination sockaddr_in structure
+ * @param uint32_t src   -- Pointer to populated source sockaddr_in structure
+ * @param uint32_t dst   -- Pointer to populated destination sockaddr_in structure
  * @param const void *data          -- Pointer to datagram to send, including appropriate
  *                                     protocol header
  * @param size_t data_len           -- Length of datagram to send
  * @return amount of bytes sent excluding ip header on success or -1 on error.
  * Set errno on error.
  */
-size_t ipv4_transmit_datagram(net_socket *socket, struct sockaddr_in *src,
-        struct sockaddr_in *dst, const void *data, size_t data_len)
+size_t ipv4_transmit_datagram(net_socket *socket, uint32_t src,
+        uint32_t dst, const void *data, size_t data_len)
 {
     ipv4_socket_options *iopts = (ipv4_socket_options *)socket->ip_options;
     uint8_t ttl = iopts->ttl;
-    uint8_t tos = ipv4_parse_tos(iopts);
+//    uint8_t tos = ipv4_parse_tos(iopts);
     uint16_t f_off = 0 ? 2 : iopts->no_fragment;
 
     ipv4_hdr *ip_hdr = create_ipv4_hdr(src, dst, 0, f_off, ttl, socket->protocol, 
@@ -231,7 +232,7 @@ size_t ipv4_transmit_datagram(net_socket *socket, struct sockaddr_in *src,
  * @return size_t amount of bytes received on success or -1 on error.
  *                Set errno on error
  */
-//size_t ipv4_receive_datagram(net_socket *socket, struct sockaddr_in *caddr, void *dst, size_t r_len) 
+//size_t ipv4_receive_datagram(net_socket *socket, uint32_t caddr, void *dst, size_t r_len) 
 //{
 //    return ret;
 //}

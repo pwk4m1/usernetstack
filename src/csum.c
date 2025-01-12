@@ -1,8 +1,6 @@
 /* Implement ip/{tcp,udp} checksum calculation */
 
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/ip.h>
 
 #include <assert.h>
 #include <stdlib.h>
@@ -12,21 +10,23 @@
 
 /* Craft a ipv4 pseudo header from source/destination sockaddr_in structures
  *
+ * @param uint32_t src            -- Source address to use
+ * @param uint32_t dst            -- Destination address to use
  * @param struct sockaddr_in *src -- Pointer source sockaddr_in
  * @param struct sockaddr_in *dst -- Pointer to destination sockaddr_in
  * @param uint8_t ptcl            -- Protocol identifier
  * @param size_t len              -- Size of payload to transmit
  * @return pointer to populated ipv4_psd_hdr
  */
-ipv4_psd_hdr *craft_ipv4_psd_hdr(struct sockaddr_in *src,
-        struct sockaddr_in *dst, uint8_t ptcl,
+ipv4_psd_hdr *craft_ipv4_psd_hdr(uint32_t src,
+        uint32_t dst, uint8_t ptcl,
         size_t len)
 {
     ipv4_psd_hdr *ret = calloc(1, sizeof(ipv4_psd_hdr));
     assert(ret && "Unable to allocate memory for pseudo header\n");
 
-    ret->src = src->sin_addr.s_addr;
-    ret->dst = dst->sin_addr.s_addr;
+    ret->src  = src;
+    ret->dst  = dst;
     ret->zero = (uint8_t)0;
     ret->ptcl = ptcl;
     ret->len = (uint16_t)(len & 0x0000FFFF);

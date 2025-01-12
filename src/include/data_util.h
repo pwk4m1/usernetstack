@@ -8,11 +8,45 @@
 #define __NETLIB_DATA_UTIL_H__
 
 #include <sys/types.h>
-#include <sys/socket.h>
 
+#include <byteswap.h>
 #include <assert.h>
-#include <stdlib.h>
 #include <stdint.h>
+
+/* Create uint32_t ipv4 address from
+ * string representation
+ *
+ * @param const char *ip -- Pointer to IP address string
+ * @return uint32_t address
+ */
+uint32_t inet_addr(const char *ip);
+
+/* Swap bytes to network host order
+ *
+ * @param uint16_t in -- Data to convert
+ * @return uint16_t data in network host order
+ */
+inline uint16_t htons(uint16_t in) {
+    return bswap_16(in);
+}
+
+/* Swap bytes to network host order
+ *
+ * @param uint16_t in -- Data to convert
+ * @return uint16_t data in host order
+ */
+inline uint16_t ntohs(uint16_t in) {
+    return bswap_16(in);
+}
+
+/* Swap bytes to network host order
+ *
+ * @param uint32_t in -- Data to convert
+ * @return uint32_t data in network host order
+ */
+inline uint32_t htonl(uint16_t in) {
+    return bswap_32(in);
+}
 
 /* Add 'addition' amount of bytes to orig_ptr, since ptr+adddition is
  * gnu_extension for most data types

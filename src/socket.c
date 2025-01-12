@@ -3,9 +3,6 @@
  */
 
 #include <sys/types.h>
-#include <sys/socket.h>
-
-#include <net/ethernet.h>
 
 #include <stdlib.h>
 
