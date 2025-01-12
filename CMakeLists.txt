@@ -8,10 +8,27 @@ add_executable(netlib
     src/udp.c
     src/ip.c
     src/eth.c
+    src/socket.c
+)
+
+if (CMAKE_SYSTEM_NAME STREQUAL "LF-OS")
+    target_sources(netlib PRIVATE
+        src/platform/lf_os/socket.c
+    )
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_sources(netlib PRIVATE
+        src/platform/linux/socket.c
+    )
+else()
+    error("Unsupported platform")
+endif()
+
+target_include_directories(netlib SYSTEM PUBLIC
+    "src/include"
 )
 
 target_compile_options(netlib PRIVATE
-    -Wall -Wextra -Wpedantic -O2
+    -Wall -Wextra -Wpedantic -O2 
 )
 
 set_target_properties(netlib PROPERTIES OUTPUT_NAME netlib)

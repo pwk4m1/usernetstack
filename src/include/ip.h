@@ -3,13 +3,10 @@
 #define __NETLIB_IP_H__
 
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
 
 #include <stdint.h>
 
-#include "data_util.h"
+#include "socket.h"
 
 /* Initialise ip header system */
 void ip_initialise(void);
@@ -53,13 +50,13 @@ enum IPV4_OPTION_NUMBER {
  * @member enum IPV4_OPTION_CLASS opt_class -- Is this control or debug/measurement option
  * @member enum IPV4_OPTION_NUMBER opt_num  -- refer to IPV4_OPTION_NUMBER documentation
  */
-struct ipv4_option_structure {
+typedef struct __attribute__((packed)) {
     int copied_flags                 : 1;
     enum IPV4_OPTION_CLASS opt_class : 2;
     enum IPV4_OPTION_NUMBER opt_num  : 5;
     uint8_t option_len;
     uint8_t *option_octets;
-} __attribute__((packed));
+} ipv4_option_structure;
 
 /* IPv4 Security option security field
  *
@@ -83,13 +80,13 @@ enum IPV4_SECURITY_SFIELD {
  * @member uint16_t transmission_control_high -- refer to DoD
  * @member uint8_t transmission_control_low -- refer to DoD
  */
-struct ipv4_security_option_fields {
+typedef struct {
     enum IPV4_SECURITY_SFIELD sfield;
     uint16_t compartments;
     uint16_t handling_restrictions;
     uint16_t transmission_control_high;
     uint8_t transmission_control_low;
-};
+} ipv4_security_option_fields ;
 
 /* Possible Type of Service (TOS) precedence values to use
  *
@@ -113,6 +110,17 @@ enum IPV4_TOS_PRE {
     NETWORK_CTRL
 };  
 
+/* ipv4 flags structure
+ *
+ * @member unsigned reserved      -- Always 0
+ * @member unsigned dont_fragment -- set to 1 if packet may be fragmented
+ * @member unsigned last_fragment -- set to 1 if this is last fragment
+ */
+enum IPV4_FLAGS {
+    DONT_FRAGMENT = (1 << 6),
+    LAST_FRAGMENT = (1 << 7)
+};
+
 /* IPv4 specific socket options that can be set for selecting various options
  * per connection in use. Not to be confused with internet options.
  *
@@ -125,21 +133,50 @@ enum IPV4_TOS_PRE {
  *                                                  or NULL if not
  * @member uint16_t mtu                          -- Maximum transmission unit
  */
-struct ipv4_socket_options {
+typedef struct __attribute__((packed)) {
     unsigned int pre                 : 3;
     unsigned int low_delay           : 1;
     unsigned int high_throughput     : 1;
     unsigned int high_reliability    : 1;
     unsigned int no_fragment         : 1;
     uint8_t ttl;
-    struct ipv4_option_structure *options;
+    ipv4_option_structure *options;
     uint16_t mtu;
-} __attribute__((packed));
+} ipv4_socket_options;
+
+/* IPv4 Header structure ( https://datatracker.ietf.org/doc/html/rfc791#section-3.1 )
+ *
+ * @member unsigned version      -- 4 bit version field
+ * @member unsigned ihl          -- internet header length
+ * @member enum IPV4_TOS_PRE tos -- type of servce
+ * @member unsigned len          -- total length
+ * @member unsigned id           -- identification
+ * @member unsigned flags        -- refer to enum IPV4_FLAGS 
+ * @membef foff                  -- fragment offset
+ * @member ttl                   -- time to live
+ * @member ptcl                  -- protocol identifier for next protocol header (icmp, tcp, udp, ..)
+ * @member csum                  -- checksum
+ * @member src                   -- source ipv4 address
+ * @member dst                   -- destination ipv4 address
+ */
+typedef struct __attribute__((packed)) {
+    unsigned ihl          : 4;
+    unsigned version      : 4;
+    enum IPV4_TOS_PRE tos : 8;
+    unsigned len          : 16;
+    unsigned id           : 16;
+    unsigned flags_foff   : 16;
+    unsigned ttl          : 8;
+    unsigned ptcl         : 8;
+    unsigned csum         : 16;
+    unsigned src          : 32;
+    unsigned dst          : 32;
+} ipv4_hdr;
 
 /* Allocate IPv4 header when non-standard header is required.
  *
- * @param struct sockaddr_in *src -- Pointer to source sockaddr_in struct
- * @param struct sockaddr_in *dst -- Pointer to destination sockaddr_in struct
+ * @param uint32_t src -- Pointer to source sockaddr_in struct
+ * @param uint32_t dst -- Pointer to destination sockaddr_in struct
  * @param uint8_t tos             -- Type of service value
  * @param uint16_t f_off_vcf      -- Fragment offset and control bits
  * @param uint8_t ttl             -- Time to live
@@ -151,8 +188,8 @@ struct ipv4_socket_options {
  *                                   and payload we're delivering
  * @return pointer to populated ipv4 header structure on success or 0 on error
  */
-struct iphdr *create_ipv4_hdr(struct sockaddr_in *src,
-        struct sockaddr_in *dst, uint8_t tos, uint16_t f_off_vcf,
+ipv4_hdr *create_ipv4_hdr(uint32_t src,
+        uint32_t dst, uint8_t tos, uint16_t f_off_vcf,
         uint8_t ttl, uint8_t proto, uint8_t option_type, uint8_t option_len,
         uint8_t *option_buf, uint16_t tlen);
 
@@ -161,31 +198,31 @@ struct iphdr *create_ipv4_hdr(struct sockaddr_in *src,
  * Unless there's a need for high priority delay, reliability or throughput, this
  * is likely the type of routine packet header you want.
  *
- * @param struct sockaddr_in *src -- Pointer to source sockaddr_in struct
- * @param struct sockaddr_in *dst -- Pointer to destination sockaddr_in struct
+ * @param uint32_t src            -- Source address to use
+ * @param uint32_t dst            -- Destination address to use
  * @param uint8_t proto           -- Protocol identification number
  * @param uint16_t tlen           -- Amount of bytes in next protocol header
  *                                   and payload we're delivering
  * @return pointer to populated ipv4 header structure
  */
-inline struct iphdr *create_std_ipv4_hdr(struct sockaddr_in *src, 
-        struct sockaddr_in *dst, uint8_t proto, uint16_t tlen) {
+inline ipv4_hdr *create_std_ipv4_hdr(uint32_t src, uint32_t dst, 
+        uint8_t proto, uint16_t tlen) {
     return create_ipv4_hdr(src, dst, 16, 0, 64, proto, 0, 0, 0, tlen);
 }
 
 /* Transmit datagram over IPv4 protocol
  *
- * @param net_socket *socket        -- Pointer to populated net_socket structure
- * @param struct sockaddr_in *src   -- Pointer to populated source sockaddr_in structure
- * @param struct sockaddr_in *dst   -- Pointer to populated destination sockaddr_in structure
- * @param const void *data          -- Pointer to datagram to send, including appropriate
- *                                     protocol header
- * @param size_t data_len           -- Length of datagram to send
+ * @param net_socket *socket -- Pointer to populated net_socket structure
+ * @param uint32_t src       -- Source address to use
+ * @param uint32_t dst       -- Destination address to use
+ * @param const void *data   -- Pointer to datagram to send, including appropriate
+ *                              protocol header
+ * @param size_t data_len    -- Length of datagram to send
  * @return size_t amount of bytes sent excluding ip header on success or -1 on error.
  * Set errno on error.
  */
-size_t ipv4_transmit_datagram(net_socket *socket, struct sockaddr_in *src,
-        struct sockaddr_in *dst, const void *data, size_t data_len);
+size_t ipv4_transmit_datagram(net_socket *socket, uint32_t src,
+        uint32_t dst, const void *data, size_t data_len);
 
 /* Receive datagram over IPv4 protocol
  *

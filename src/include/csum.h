@@ -7,8 +7,6 @@
 #include <sys/types.h>
 #include <stdint.h>
 
-#include "data_util.h"
-
 /* ipv{4,6}_psd_hdr structures are pseudo headers that are needed by
  * TCP and UDP checksum calculations. I'd really love not to have TCP/UDP be
  * aware of things on IP layer, but unfortunately that's not possible :(
@@ -53,14 +51,16 @@ typedef struct {
 
 /* Craft a ipv4 pseudo header from source/destination sockaddr_in structures
  *
+ * @param uint32_t src            -- Source address to use
+ * @param uint32_t dst            -- Destination address to use
  * @param struct sockaddr_in *src -- Pointer source sockaddr_in
  * @param struct sockaddr_in *dst -- Pointer to destination sockaddr_in
  * @param uint8_t ptcl            -- Protocol identifier
  * @param size_t len              -- Size of payload to transmit
  * @return pointer to populated ipv4_psd_hdr
  */
-ipv4_psd_hdr *craft_ipv4_psd_hdr(struct sockaddr_in *src,
-        struct sockaddr_in *dst, uint8_t ptcl,
+ipv4_psd_hdr *craft_ipv4_psd_hdr(uint32_t src,
+        uint32_t dst, uint8_t ptcl,
         size_t len);
 
 /* Calculate 16 bit checksum for ip/tcp/udp. This is ones' complement of the

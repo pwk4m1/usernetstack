@@ -1,0 +1,49 @@
+/* Helpers for our socket operations
+ *
+ */
+
+#include <sys/types.h>
+
+#include <stdlib.h>
+
+#include <ip.h>
+#include <socket.h>
+
+/* Open new network socket for user.
+ *
+ * @param int family          -- AF_INET/AF_INET6/...
+ * @param int protocol        -- TCP/UDP/...
+ * @param const uint8_t *smac -- Source Mac address
+ * @param const uint8_t *dmac -- Source Mac address
+ * @param char *iface         -- Name of network interface we're using
+ * @return pointer to populated net_socket structure on success or 0 on error.
+ *         set errno on error.
+ */
+net_socket *new_socket(int family, int protocol, uint8_t *smac, uint8_t *dmac, char *iface) {
+    net_socket *ret = (net_socket *)calloc(1, sizeof(net_socket));
+    if (!ret) {
+        return 0;
+    }
+    ret->raw_sockfd = raw_socket(iface);
+    ret->iface = iface;
+
+    ret->family = family;
+    ret->protocol = protocol;
+
+    ret->mac_src = smac;
+    ret->mac_dst = dmac;
+
+    ret->ip_options = calloc(1, sizeof(ipv4_socket_options));
+    if (!ret->ip_options) {
+        free(ret);
+        return 0;
+    }
+
+    ipv4_socket_options *iopts = (ipv4_socket_options *)ret->ip_options;
+    iopts->ttl = 64;
+    iopts->high_throughput = 1;
+    
+    return ret;
+}
+
+
