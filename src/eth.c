@@ -4,8 +4,6 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 
-#include <stdio.h>
-
 #include <stdlib.h>
 #include <string.h>
 
@@ -30,12 +28,6 @@ eth_hdr *create_eth_hdr(net_socket *socket, uint16_t proto) {
     return ret;
 }
 
-static inline void log(const void *data, size_t size) {
-    FILE *fptr = fopen("log.bin", "wb");
-    fwrite(data, size, 1, fptr);
-    fclose(fptr);
-}
-
 /* Transmit datagram over ethernet.
  *
  * @param net_socket *sock -- Pointer to socket we're working with
@@ -57,7 +49,6 @@ uint16_t eth_transmit_frame(net_socket *sock, const void *data, uint16_t len) {
     }
     memcpy(packet, eth, sizeof(eth_hdr));
     memcpy(POINTER_ADD(void *, packet, sizeof(eth_hdr)), data, len);
-    log(packet, sizeof(eth_hdr));
 
     sent = transmit(sock, (const void *)packet, (sizeof(eth_hdr) + len));
 

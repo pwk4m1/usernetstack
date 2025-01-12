@@ -213,7 +213,7 @@ size_t ipv4_transmit_datagram(net_socket *socket, struct sockaddr_in *src,
 
     memcpy(packet, ip_hdr, sizeof(ipv4_hdr));
     memcpy(POINTER_ADD(void *, packet, 
-                sizeof(struct iphdr)), data, data_len);
+                sizeof(ipv4_hdr)), data, data_len);
 
     uint16_t sent = eth_transmit_frame(socket, (const void *)packet, size);
 

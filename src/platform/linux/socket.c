@@ -9,8 +9,6 @@
 #include <net/ethernet.h>
 #include <net/if.h>
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include <unistd.h>
@@ -34,12 +32,6 @@ int raw_socket(const char *iface) {
     return sock;
 }
 
-static void log(const void *data, size_t len) {
-    FILE *fptr = fopen("packet.bin", "wb");
-    fwrite(data, len, 1, fptr);
-    fclose(fptr);
-}
-
 /* Send up to size_t bytes of data
  *
  * @param net_socket *sock -- Pointer to socket we're working with
@@ -59,8 +51,6 @@ size_t transmit(net_socket *sock, const void *data, size_t len) {
     saddr.sll_pkttype  = PACKET_OTHERHOST;
     saddr.sll_halen    = ETH_ALEN;
 
-    printf("Sending %d bytes\n", len);
-    log(data, len);
 
     return sendto(sock->raw_sockfd, data, len, 0, (const struct sockaddr *)&saddr, sizeof(struct sockaddr_ll));
 }
