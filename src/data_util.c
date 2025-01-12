@@ -3,8 +3,6 @@
  */
 #include <sys/types.h>
 
-#include <stdio.h>
-
 #include <stdlib.h>
 #include <string.h>
 
@@ -26,12 +24,10 @@ uint32_t inet_addr(const char *ip) {
 
     for (int i = 0; i < 4; i++) {
         uint8_t val = atoi(tok);
-        printf("%x ", val);
         ret |= (val << (i * 8));
         tok = strtok(NULL, ".");
     }
     free(tmp);
-    printf("\nAddress: %s => %x\n", ip, ret);
     return ret;
 }
 

@@ -8,12 +8,12 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <threads.h>
+//#include <threads.h>
 
 #include <bitmap.h>
 #include <csum.h>
 #include <data_util.h>
-#include <eth.h>
+#include <link.h>
 #include <ip.h>
 
 // This bitmask contains those ip id values that are
@@ -27,11 +27,11 @@ static uint16_t last_block = 0;
 uint16_t max_blocks = 1024;
 
 // Mutex lock for id bitmask
-mtx_t id_map_lock;
+// mtx_t id_map_lock;
 
 /* Initialise ip header system */
 void ip_initialise(void) {
-    mtx_init(&id_map_lock, 0);
+   // mtx_init(&id_map_lock, 0);
     srand(((uint64_t)&ip_initialise) % 0xffff);
     last_block = rand() % 0x1000; 
     used_ip_id_values = calloc(1, (65536 / 8));
@@ -41,8 +41,8 @@ void ip_initialise(void) {
 
 /* Finalise ip header system */
 void ip_finalise(void) {
-    mtx_lock(&id_map_lock);
-    mtx_destroy(&id_map_lock);
+    //mtx_lock(&id_map_lock);
+    //mtx_destroy(&id_map_lock);
     free(used_ip_id_values);
 }
 
@@ -61,17 +61,19 @@ void ip_finalise(void) {
  * @return bool true on success or false on error.
  */
 static bool allocate_ipv4_id(ipv4_hdr *iph) {
-    int mutex_result;
+    //int mutex_result;
 
     /* Try and lock mutex, if result isn't success or busy,
      * we've errored out and should return false.
      */
+    /*
     do {
         mutex_result = mtx_trylock(&id_map_lock);
     } while (mutex_result == thrd_busy);
     if (mutex_result != thrd_success) {
         return false;
     }
+    */
 
     /* Select a random starting point */
     srand(last_block);
@@ -89,7 +91,7 @@ static bool allocate_ipv4_id(ipv4_hdr *iph) {
         }
     } while (!current_id);
     iph->id = current_id;
-    mtx_unlock(&id_map_lock);
+    //mtx_unlock(&id_map_lock);
 
     return true;
 }
@@ -216,7 +218,8 @@ size_t ipv4_transmit_datagram(net_socket *socket, uint32_t src,
     memcpy(POINTER_ADD(void *, packet, 
                 sizeof(ipv4_hdr)), data, data_len);
 
-    uint16_t sent = eth_transmit_frame(socket, (const void *)packet, size);
+    // uint16_t sent = eth_transmit_frame(socket, (const void *)packet, size);
+    uint16_t sent = link_tx(socket, (const void *)packet, size);
 
     free_ipv4_id(ip_hdr->id);
     free(ip_hdr);

@@ -8,6 +8,7 @@
 
 #include <data_util.h>
 #include <eth.h>
+#include <link.h>
 
 /* Create ethernet header with given source and destination MAC addresses
  * and protocol type
@@ -21,8 +22,10 @@ eth_hdr *create_eth_hdr(net_socket *socket, uint16_t proto) {
     if (!ret) {
         return ret;
     }
-    memcpy(ret->mac_src, socket->mac_src, 6);
-    memcpy(ret->mac_dst, socket->mac_dst, 6);
+    link_options *link = (link_options *)socket->link_options;
+
+    memcpy(ret->mac_src, link->src_mac, 6);
+    memcpy(ret->mac_dst, link->dst_mac, 6);
     ret->ptcl = htons(proto);
     return ret;
 }
@@ -31,11 +34,11 @@ eth_hdr *create_eth_hdr(net_socket *socket, uint16_t proto) {
  *
  * @param net_socket *sock -- Pointer to socket we're working with
  * @param const void *data -- Pointer to protocol headers and data above this layer
- * @param uint16_t len     -- Amount of bytes to send
- * @return uint16_t bytes sent on success or -1 on error.
+ * @param size_t len       -- Amount of bytes to send
+ * @return size_t bytes sent on success or -1 on error.
  *         Set errno on error.
  */
-uint16_t eth_transmit_frame(net_socket *sock, const void *data, uint16_t len) {
+size_t eth_transmit(net_socket *sock, const void *data, size_t len) {
     uint16_t sent = -1;
     eth_hdr *eth = create_eth_hdr(sock, 0x0800);
     if (!eth) {

@@ -15,6 +15,7 @@
 
 #include <data_util.h>
 #include <ip.h>
+#include <link.h>
 #include <socket.h>
 
 /* Get and setup unix-styled socket for us
@@ -33,14 +34,6 @@ int raw_socket(const char *iface) {
     return sock;
 }
 
-#include <stdio.h>
-
-static void log(const void *d, size_t l) {
-    FILE *f = fopen("packet.bin", "wb");
-    fwrite(d, l, 1, f);
-    fclose(f);
-}
-
 /* Send up to size_t bytes of data
  *
  * @param net_socket *sock -- Pointer to socket we're working with
@@ -51,8 +44,9 @@ static void log(const void *d, size_t l) {
  */
 size_t transmit(net_socket *sock, const void *data, size_t len) {
     struct sockaddr_ll saddr;
+    link_options *link = (link_options *)sock->link_options;
 
-    memcpy(saddr.sll_addr, sock->mac_src, 6);
+    memcpy(saddr.sll_addr, link->src_mac, 6);
     saddr.sll_family   = AF_PACKET;
     saddr.sll_protocol = htons(ETH_P_ALL);
     saddr.sll_ifindex  = if_nametoindex(sock->iface);
@@ -60,9 +54,9 @@ size_t transmit(net_socket *sock, const void *data, size_t len) {
     saddr.sll_pkttype  = PACKET_OTHERHOST;
     saddr.sll_halen    = ETH_ALEN;
 
-    log(data, len);
 
-    return sendto(sock->raw_sockfd, data, len, 0, (const struct sockaddr *)&saddr, sizeof(struct sockaddr_ll));
+    return sendto(sock->raw_sockfd, data, len, 0, 
+            (const struct sockaddr *)&saddr, sizeof(struct sockaddr_ll));
 }
 
 

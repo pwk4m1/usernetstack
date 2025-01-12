@@ -11,18 +11,17 @@
  * @member int raw_sockfd        -- Socket file descriptor to use
  * @member int family            -- Socket family (AF_INET, AF_INET6, ...)
  * @member int protocol          -- Protocol to use (TCP/UDP/ICMP/..)
- * @member void *phy_options     -- Link layer options
+ * @member void *link_options    -- Link layer options
  * @member void *ip_options      -- ipv4 or ipv6 options structure
  * @member void *ptcl_options    -- Protocol specific options structure
  * @member char *iface           -- Name of interface to use
+ *
  */
 typedef struct {
     int raw_sockfd;
     int family;
     int protocol;
-    uint8_t *mac_src;
-    uint8_t *mac_dst;
-    void *phy_options;
+    void *link_options;
     void *ip_options;
     void *proto_options;
     char *iface;
@@ -39,13 +38,15 @@ int raw_socket(const char *iface);
  *
  * @param int family          -- AF_INET/AF_INET6/...
  * @param int protocol        -- TCP/UDP/...
+ * @param enum LINK_TYPE type -- ETH/SLIP/PPP/..
  * @param const uint8_t *smac -- Source Mac address
  * @param const uint8_t *dmac -- Source Mac address
  * @param char *iface         -- Name of network interface we're using
  * @return pointer to populated net_socket structure on success or 0 on error.
  * set errno on error.
  */
-net_socket *new_socket(int family, int protocol, uint8_t *smac, uint8_t *dmac, char *iface);
+net_socket *new_socket(int family, int protocol, int type,
+        uint8_t *smac, uint8_t *dmac, char *iface);
 
 /* Send up to size_t bytes of data
  *

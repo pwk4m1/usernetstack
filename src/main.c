@@ -11,13 +11,14 @@
 #include <socket.h>
 #include <udp.h>
 #include <ip.h>
+#include <link.h>
 
 //const char *TEST_SMAC = "\x56\x94\x9d\x02\x2e\x43";
 const char *TEST_SMAC = "\xe0\x9d\x31\x29\x22\xe0";
 const char *TEST_DMAC = "\xfa\x22\x23\x87\xa9\x9d"; 
 
 int main(void) {
-    net_socket *sock = new_socket(2, 17, (uint8_t*)TEST_SMAC, (uint8_t*)TEST_DMAC, "wlp2s0");
+    net_socket *sock = new_socket(2, 17, ETH, (uint8_t*)TEST_SMAC, (uint8_t*)TEST_DMAC, "wlp2s0");
     if (!sock) {
         fprintf(stderr, "\nError: %d/%s\n", errno, strerror(errno));
         fflush(stderr);
