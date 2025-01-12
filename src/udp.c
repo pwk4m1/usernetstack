@@ -1,7 +1,6 @@
 /* Helpers for crafting udp header, and reading/writing data over udp. */
 
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
@@ -11,10 +10,10 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "csum.h"
-#include "data_util.h"
-#include "ip.h"
-#include "udp.h"
+#include <data_util.h>
+#include <ip.h>
+#include <udp.h>
+#include <socket.h>
 
 /* Create udp header for user.
  *

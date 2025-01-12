@@ -2,16 +2,15 @@
  *
  */
 #include <sys/types.h>
-#include <net/ethernet.h>
 #include <arpa/inet.h>
 
-#include <linux/if_packet.h>
+#include <stdio.h>
 
 #include <stdlib.h>
 #include <string.h>
 
-#include "data_util.h"
-#include "eth.h"
+#include <data_util.h>
+#include <eth.h>
 
 /* Create ethernet header with given source and destination MAC addresses
  * and protocol type
@@ -20,15 +19,50 @@
  * @param uint16_t proto     -- Protocol to use
  * @return pointer to populated ethernet header
  */
-struct ethhdr *create_eth_hdr(net_socket *socket, uint16_t proto) {
-    struct ethhdr *ret = calloc(1, sizeof(struct ethhdr));
+eth_hdr *create_eth_hdr(net_socket *socket, uint16_t proto) {
+    eth_hdr *ret = (eth_hdr *)calloc(1, sizeof(eth_hdr));
     if (!ret) {
         return ret;
     }
-    memcpy(ret->h_source, socket->link_saddr->sll_addr, 6);
-    memcpy(ret->h_dest, socket->link_daddr->sll_addr, 6);
-
-    ret->h_proto = htons(proto);
+    memcpy(ret->mac_src, socket->mac_src, 6);
+    memcpy(ret->mac_dst, socket->mac_dst, 6);
+    ret->ptcl = htons(proto);
     return ret;
+}
+
+static inline void log(const void *data, size_t size) {
+    FILE *fptr = fopen("log.bin", "wb");
+    fwrite(data, size, 1, fptr);
+    fclose(fptr);
+}
+
+/* Transmit datagram over ethernet.
+ *
+ * @param net_socket *sock -- Pointer to socket we're working with
+ * @param const void *data -- Pointer to protocol headers and data above this layer
+ * @param uint16_t len     -- Amount of bytes to send
+ * @return uint16_t bytes sent on success or -1 on error.
+ *         Set errno on error.
+ */
+uint16_t eth_transmit_frame(net_socket *sock, const void *data, uint16_t len) {
+    uint16_t sent = -1;
+    eth_hdr *eth = create_eth_hdr(sock, 0x0800);
+    if (!eth) {
+        return sent;
+    }
+
+    void *packet = calloc(1, (sizeof(eth_hdr) + len));
+    if (!packet) {
+        return sent;
+    }
+    memcpy(packet, eth, sizeof(eth_hdr));
+    memcpy(POINTER_ADD(void *, packet, sizeof(eth_hdr)), data, len);
+    log(packet, sizeof(eth_hdr));
+
+    sent = transmit(sock, (const void *)packet, (sizeof(eth_hdr) + len));
+
+    free(packet);
+    free(eth);
+    return sent;
 }
 

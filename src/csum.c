@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include "csum.h"
+#include <csum.h>
 
 /* Craft a ipv4 pseudo header from source/destination sockaddr_in structures
  *

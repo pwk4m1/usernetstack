@@ -1,12 +1,5 @@
 /* Helpers for creating IPv4 and IPv6 headers */
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-
-#include <netpacket/packet.h>
-#include <net/ethernet.h>
-
 #include <assert.h>
 
 #include <stddef.h>
@@ -15,15 +8,12 @@
 #include <stdint.h>
 #include <string.h>
 
-
-#include <stdio.h>
-
 #include <threads.h>
 
-#include "eth.h"
-#include "ip.h"
-#include "bitmap.h"
-#include "csum.h"
+#include <eth.h>
+#include <ip.h>
+#include <bitmap.h>
+#include <csum.h>
 
 // This bitmask contains those ip id values that are
 // currently in use.
@@ -69,7 +59,7 @@ void ip_finalise(void) {
  *                             has no ID or checksum fields filled yet.
  * @return bool true on success or false on error.
  */
-static bool allocate_ipv4_id(struct iphdr *iph) {
+static bool allocate_ipv4_id(ipv4_hdr *iph) {
     int mutex_result;
 
     /* Try and lock mutex, if result isn't success or busy,
@@ -120,7 +110,7 @@ static inline void free_ipv4_id(uint16_t id) {
  * @param struct sockaddr_in *src -- Pointer to source sockaddr_in struct
  * @param struct sockaddr_in *dst -- Pointer to destination sockaddr_in struct
  * @param uint8_t tos             -- Type of service value
- * @param uint16_t f_off_vcf      -- Fragment offset and control bits
+ * @param uint16_t f_off          -- Fragment offset
  * @param uint8_t ttl             -- Time to live
  * @param uint8_t proto           -- Protocol
  * @param uint8_t option_type     -- Type field for additional IPv4 options or 0 if unused
@@ -131,12 +121,12 @@ static inline void free_ipv4_id(uint16_t id) {
  * @return pointer to populated ipv4 header structure on success or NULL on error.
  * Errno is set for us by malloc()
  */
-struct iphdr *create_ipv4_hdr(struct sockaddr_in *src,
+ipv4_hdr *create_ipv4_hdr(struct sockaddr_in *src,
         struct sockaddr_in *dst, uint8_t tos, uint16_t f_off_vcf,
         uint8_t ttl, uint8_t proto, uint8_t option_type, uint8_t option_len,
         uint8_t *option_buf, uint16_t tlen) 
 {
-    size_t len = sizeof(struct iphdr);
+    size_t len = sizeof(ipv4_hdr);
     if (option_type) {
         len++;
     }
@@ -148,35 +138,34 @@ struct iphdr *create_ipv4_hdr(struct sockaddr_in *src,
         len += ((len % 4) + (4 - (len % 4)));
     }
     uint8_t ihl = len / 4;
-    void *hdr = malloc(len);
-    if (!hdr) {
-        return 0;
-    }
-    memset(hdr, 0, len);
 
-    struct iphdr *iph = (struct iphdr *)hdr;
+    ipv4_hdr *iph = calloc(1, sizeof(ipv4_hdr));
+    if (!iph) {
+        return iph;
+    }
+
     iph->version = 4;
     iph->ihl = ihl;
     iph->tos = tos;
-    iph->tot_len = htons(len + tlen);
-    iph->frag_off = f_off_vcf;
+    iph->len = htons(len + tlen);
+    iph->flags_foff = htons(f_off_vcf | (DONT_FRAGMENT << 8));
     iph->ttl = ttl;
-    iph->protocol = proto;
-    iph->saddr = src->sin_addr.s_addr;
-    iph->daddr = dst->sin_addr.s_addr;
-    iph->check = 0;
+    iph->ptcl = proto;
+    iph->src = src->sin_addr.s_addr;
+    iph->dst = dst->sin_addr.s_addr;
+    iph->csum = 0;
     allocate_ipv4_id(iph);
 
     if (option_type) {
-        memcpy(POINTER_ADD(void *, hdr, sizeof(struct iphdr)), &option_type, 1);
+        memcpy(POINTER_ADD(void *, iph, sizeof(ipv4_hdr)), &option_type, 1);
     }
     if (option_len) {
-        memcpy(POINTER_ADD(void *, hdr, sizeof(struct iphdr) + 1), &option_len, 1);
-        memcpy(POINTER_ADD(void *, hdr, sizeof(struct iphdr) + 2), option_buf, option_len);
+        memcpy(POINTER_ADD(void *, iph, sizeof(ipv4_hdr) + 1), &option_len, 1);
+        memcpy(POINTER_ADD(void *, iph, sizeof(ipv4_hdr) + 2), option_buf, option_len);
     }
-    iph->check = csum((uint16_t *)hdr, len);
+    iph->csum = csum((uint16_t *)iph, len);
 
-    return hdr;
+    return iph; 
 }
 
 /* Helper for parsing IPv4 Type of Service value 
@@ -184,14 +173,8 @@ struct iphdr *create_ipv4_hdr(struct sockaddr_in *src,
  * @param struct ipv4_socket_options *sopts -- Pointer to populated ipv4_socket_options structure
  * @return uint8_t type of service
  */
-static inline uint8_t ipv4_parse_tos(struct ipv4_socket_options *sopts) {
+static inline uint8_t ipv4_parse_tos(ipv4_socket_options *sopts) {
     return (sopts->pre | (sopts->low_delay << 3) | (sopts->high_throughput << 4) | (sopts->high_reliability << 5));
-}
-
-static inline void log_pkt(void *packet, size_t size) {
-    FILE *f = fopen("log.bin", "wb");
-    fwrite(packet, size, 1, f);
-    fclose(f);
 }
 
 /* Transmit datagram over IPv4 protocol
@@ -208,44 +191,36 @@ static inline void log_pkt(void *packet, size_t size) {
 size_t ipv4_transmit_datagram(net_socket *socket, struct sockaddr_in *src,
         struct sockaddr_in *dst, const void *data, size_t data_len)
 {
-    struct ipv4_socket_options *iopts = (struct ipv4_socket_options *)socket->ip_options;
+    ipv4_socket_options *iopts = (ipv4_socket_options *)socket->ip_options;
     uint8_t ttl = iopts->ttl;
     uint8_t tos = ipv4_parse_tos(iopts);
-    uint16_t f_off_vcf = 0 ? 2 : iopts->no_fragment;
+    uint16_t f_off = 0 ? 2 : iopts->no_fragment;
 
-    struct ethhdr *eth_hdr = create_eth_hdr(socket, ETH_P_IP);
-    struct iphdr *ip_hdr = create_ipv4_hdr(src, dst, tos, f_off_vcf, ttl, socket->protocol, 
+    ipv4_hdr *ip_hdr = create_ipv4_hdr(src, dst, 0, f_off, ttl, socket->protocol, 
             0, 0, 0, data_len);
     if (!ip_hdr) {
         // Errno was set to us by malloc()
         return -1;
     }
 
-    uint16_t size = ntohs(ip_hdr->tot_len) + sizeof(struct ethhdr);
-    printf("size: %d\n", size);
+    uint16_t size = ntohs(ip_hdr->len);
     void *packet = calloc(1, size);
     if (!packet) {
         // Errno was set to us by realloc()
         free(ip_hdr);
         return -1;
     }
-    memcpy(packet, eth_hdr, sizeof(struct ethhdr));
-    memcpy(POINTER_ADD(void *, packet, sizeof(struct ethhdr)), 
-            ip_hdr, sizeof(struct iphdr));
 
+    memcpy(packet, ip_hdr, sizeof(ipv4_hdr));
     memcpy(POINTER_ADD(void *, packet, 
-                (sizeof(struct ethhdr) + (sizeof(struct iphdr)))), data, data_len);
+                sizeof(struct iphdr)), data, data_len);
 
-    printf("Calling sendto()\n");
-    log_pkt(packet, size);
-    size_t written = sendto(socket->raw_sockfd, packet, size, 0, 
-            (struct sockaddr *)socket->link_saddr, sizeof(struct sockaddr_ll));
-    // TODO: ICMP Error checks
+    uint16_t sent = eth_transmit_frame(socket, (const void *)packet, size);
 
     free_ipv4_id(ip_hdr->id);
+    free(ip_hdr);
     free(packet);
-
-    return written;
+    return sent;
 }
 
 /* Receive datagram over IPv4 protocol
@@ -260,8 +235,6 @@ size_t ipv4_transmit_datagram(net_socket *socket, struct sockaddr_in *src,
 //{
 //    return ret;
 //}
-
-
 
 
 

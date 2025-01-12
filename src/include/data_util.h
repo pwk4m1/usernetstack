@@ -23,41 +23,6 @@
  */
 #define POINTER_ADD(dest_type, orig_ptr, addition) ((dest_type)(((uint64_t)orig_ptr) + addition))
 
-/* net_socket structure holds information about a specific 
- * socket in use. This structure is not intended to be used
- * by users directly, but rather via different helper functions.
- * However, idk, go ahead and do whatever you wish with it.
- *
- * @member int raw_sockfd                   -- Socket file descriptor to use
- * @member int family                       -- Socket family (AF_INET, AF_INET6, ...)
- * @member int protocol                     -- Protocol to use (TCP/UDP/ICMP/..)
- * @member struct sockaddr_ll *link_saddr   -- Link layer sockaddr structure
- * @member void *ip_options                 -- ipv4 or ipv6 options structure
- * @member void *ptcl_options               -- Protocol specific options structure
- *
- */
-typedef struct {
-    int raw_sockfd;
-    int family;
-    int protocol;
-    struct sockaddr_ll *link_saddr;
-    struct sockaddr_ll *link_daddr;
-    void *ip_options;
-    void *proto_options;
-} net_socket;
-
-/* Open new network socket for user.
- *
- * @param int family          -- AF_INET/AF_INET6/...
- * @param int protocol        -- TCP/UDP/...
- * @param const uint8_t *smac -- Source Mac address
- * @param const uint8_t *dmac -- Source Mac address
- * @param char *iface         -- Name of network interface we're using
- * @return pointer to populated net_socket structure on success or 0 on error.
- * set errno on error.
- */
-net_socket *new_socket(int family, int protocol, uint8_t *smac, uint8_t *dmac, char *iface);
-
 /* Helper to populate sockaddr_in and sockaddr_in6 structures from
  * user provided data.
  *
