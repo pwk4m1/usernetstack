@@ -1,37 +1,18 @@
 cmake_minimum_required(VERSION 3.2)
-project(netlib LANGUAGES C VERSION 0.5)
+project(unetlib LANGUAGES C VERSION 0.5)
+set(PLATFORM "linux")
 
-add_executable(netlib 
+add_executable(unetlib
     src/main.c
-    src/csum.c
-    src/data_util.c
-    src/udp.c
-    src/ip.c
-    src/eth.c
-    src/socket.c
-    src/link.c
-    src/slip.c
+    src/iface/iface.c
+    src/route/route.c
 )
 
-if (CMAKE_SYSTEM_NAME STREQUAL "LF-OS")
-    target_sources(netlib PRIVATE
-        src/platform/lf_os/socket.c
-    )
-elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_sources(netlib PRIVATE
-        src/platform/linux/socket.c
-    )
-else()
-    error("Unsupported platform")
-endif()
+add_subdirectory(src/link)
 
-target_include_directories(netlib SYSTEM PUBLIC
-    "src/include"
-)
-
-target_compile_options(netlib PRIVATE
+target_compile_options(unetlib PRIVATE
     -Wall -Wextra -Wpedantic -O2 
 )
 
-set_target_properties(netlib PROPERTIES OUTPUT_NAME netlib)
+set_target_properties(unetlib PROPERTIES OUTPUT_NAME unetlib)
 

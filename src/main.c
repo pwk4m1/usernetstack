@@ -1,72 +1,34 @@
-/*
- BSD 3-Clause License
- 
- Copyright (c) 2025, k4m1 <me@k4m1.net>
- All rights reserved.
- 
- Redistribution and use in source and binary forms, with or without
- modification, are permitted provided that the following conditions are met:
- 
- 1. Redistributions of source code must retain the above copyright notice, this
-    list of conditions and the following disclaimer.
- 
- 2. Redistributions in binary form must reproduce the above copyright notice,
-    this list of conditions and the following disclaimer in the documentation
-    and/or other materials provided with the distribution.
- 
- 3. Neither the name of the copyright holder nor the names of its
-    contributors may be used to endorse or promote products derived from
-    this software without specific prior written permission.
- 
- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 
-/* Entrypoint for userspace network library
- */
-
-#include <sys/types.h>
-
-#include <errno.h>
 #include <stdio.h>
-#include <string.h>
+#include <stdint.h>
 
-#include <data_util.h>
-#include <socket.h>
-#include <udp.h>
-#include <ip.h>
-#include <link.h>
+#include "iface/iface.h"
+#include "link/eth/eth.h"
+#include "buffer/buffer.h"
+#include "route/route.h"
 
-//const char *TEST_SMAC = "\x56\x94\x9d\x02\x2e\x43";
-const char *TEST_SMAC = "\xe0\x9d\x31\x29\x22\xe0";
-const char *TEST_DMAC = "\xfa\x22\x23\x87\xa9\x9d"; 
+ipv4_routing_table *table = 0;
 
 int main(void) {
-    net_socket *sock = new_socket(2, 17, SLIP, (uint8_t*)TEST_SMAC, (uint8_t*)TEST_DMAC, "wlp2s0");
-    if (!sock) {
-        fprintf(stderr, "\nError: %d/%s\n", errno, strerror(errno));
-        fflush(stderr);
-        return -1;
-    }
-    ip_initialise();
-    uint32_t src_addr = inet_addr("10.0.0.2");
-    uint32_t dst_addr = inet_addr("152.53.133.5");
-    size_t sent = udp_send(sock, src_addr, dst_addr, 1234, 1337, (uint8_t *)"Hellorld\n", 9);
+    buffer *foo = new_buffer(32);
+    net_interface *iface = create_interface("test-iface", create_eth_link, NULL);
+    iface->state = up;
 
-    if (sent == -1) {
-        printf("error: %d/%s\n", errno, strerror(errno));
+    table = new_ipv4_route_table();
+    if (!table) {
+        fprintf(stderr, "Can't create routing table!\n");
+        return 1;
     }
+    printf("Add route\n");
+    add_ipv4_route_entry(true, 10, 0xff, 0, iface);
+    printf("Get route to host\n");
+    ipv4_route_entry *e = ipv4_get_route_to_host(10);
 
-    do {} while (1);
-    return sent;
+    if (e) {
+        printf("Found route\n");
+    }
+    iface_tx(e->iface, foo);
+
+    return 0;
 }
-
 
