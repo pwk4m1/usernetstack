@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "util.h"
 #include "arp/arp.h"
 #include "buffer/buffer.h"
 #include "iface/iface.h"
@@ -32,6 +33,9 @@ int main(void) {
         printf("Found route: %p\n", e);
     }
     linked_list *table = new_linked_list();
+
+    uint32_t *addr = iface->ipv4_address_list->data_array;
+    addr[0] = inet_addr("172.20.239.137");
 
     printf("ARP\n");
     uint64_t cnt = arp_find_neighbours(table, iface);

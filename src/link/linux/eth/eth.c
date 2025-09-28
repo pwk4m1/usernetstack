@@ -46,8 +46,7 @@
 #include "../../link.h"
 #include "../../../buffer/buffer.h"
 
-//static const char *MAC_SRC = "\xe0\x9d\x31\x29\x22\xe0";
-static const char *MAC_SRC = "\x11\x22\x33\x44\x55\x66";
+static const char *MAC_SRC = "\xe0\x9d\x31\x29\x22\xe0";
 
 typedef struct {
     char *name;
@@ -111,6 +110,7 @@ unet_link *create_eth_link(void *link_data) {
     ret->mtu = 1500;
     ret->rx = eth_rx;
     ret->tx = eth_tx;
+    ret->type = 1;
     ret->ptcl_data = (linux_eth_data *)calloc(1, sizeof(linux_eth_data));
     if (!ret->ptcl_data) {
         free(ret);

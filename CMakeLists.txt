@@ -4,6 +4,7 @@ set(PLATFORM "linux")
 
 add_executable(unetlib
     src/main.c
+    src/util.c
     src/iface/iface.c
     src/route/route.c
     src/llist/llist.c

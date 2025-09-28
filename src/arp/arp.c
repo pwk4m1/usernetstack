@@ -40,8 +40,9 @@
 #include "../link/eth/eth.h"
 #include "../llist/llist.h"
 
-// static const char *MAC_SRC = "\xe0\x9d\x31\x29\x22\xe0";
-static const char *MAC_SRC = "\x11\x22\x33\x44\x55\x66";
+
+static const char *MAC_SRC = "\xe0\x9d\x31\x29\x22\xe0";
+// static const char *MAC_SRC = "\x11\x22\x33\x44\x55\x66";
 
 /**
  * Helper to get appropriate hardware size for given type
@@ -106,11 +107,11 @@ static buffer *new_arp_bc_packet(net_interface *iface) {
     arp_packet *pkt = (arp_packet *)ret->buf;
     pkt->hardware_type = htons(iface->link->type);
     pkt->protocol_type = htons(ETH_AF_INET);
-    pkt->hardware_size = htons(get_hw_size(pkt->hardware_type));
+    pkt->hardware_size = 6;
     pkt->protocol_size = sizeof(uint32_t);
     pkt->operation = htons(REQUEST);
     memcpy(pkt->source_hw_address, eth_data->src_mac, sizeof(eth_data->src_mac));
-    pkt->source_ptcl_address = htonl((uint32_t)(*(uint32_t *)farr_get_entry(iface->ipv4_address_list, 0)));
+    pkt->source_ptcl_address = (uint32_t)(*(uint32_t *)farr_get_entry(iface->ipv4_address_list, 0));
     memset(pkt->target_hw_address, 0, sizeof(pkt->target_hw_address));
     pkt->target_ptcl_address = 0;
     return ret; 
@@ -135,8 +136,10 @@ uint64_t arp_find_neighbours(linked_list *table, net_interface *iface) {
     memcpy(hdr->src, MAC_SRC, 6);
     memset(hdr->dst, 0xFF, 6);
     hdr->ptcl = htons(0x0806);
+
     pkt = append_buffer(pkt, new_arp_bc_packet(iface));
     printf("Packet buffer: %d/%x bytes\n", pkt->len, pkt->len);
+
 
     iface_tx(iface, pkt);
     free(pkt);

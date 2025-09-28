@@ -48,7 +48,8 @@ inline uint32_t bswap_32(uint32_t in) {
     return ret;
 }
 
-/* Swap bytes to network host order
+/**
+ * Swap bytes to network host order
  *
  * @param uint16_t in -- Data to convert
  * @return uint16_t data in network host order
@@ -56,7 +57,9 @@ inline uint32_t bswap_32(uint32_t in) {
 inline uint16_t htons(uint16_t in) {
     return bswap_16(in);
 }
-/* Swap bytes to network host order
+
+/**
+ * Swap bytes to network host order
  *
  * @param uint16_t in -- Data to convert
  * @return uint16_t data in host order
@@ -64,13 +67,24 @@ inline uint16_t htons(uint16_t in) {
 inline uint16_t ntohs(uint16_t in) {
     return bswap_16(in);
 }
-/* Swap bytes to network host order
+
+/**
+ * Swap bytes to network host order
  *
  * @param uint32_t in -- Data to convert
  * @return uint32_t data in network host order
  */
-inline uint32_t htonl(uint16_t in) {
+inline uint32_t htonl(uint32_t in) {
     return bswap_32(in);
 }
+
+/**
+ * Create uint32_t ipv4 address from
+ * string representation
+ *
+ * @param char *ip -- Pointer to IP address string
+ * @return uint32_t address
+ */
+uint32_t inet_addr(const char *ip);
 
 #endif // __UNET_UTIL_H__
