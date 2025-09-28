@@ -35,9 +35,12 @@
 #include <stdint.h>
 
 #include "arp.h"
+#include "../util.h"
 #include "../iface/iface.h"
 #include "../link/eth/eth.h"
 #include "../llist/llist.h"
+
+static const char *MAC_SRC = "\xe0\x9d\x31\x29\x22\xe0";
 
 /**
  * Helper to get appropriate hardware size for given type
@@ -100,18 +103,17 @@ static buffer *new_arp_bc_packet(net_interface *iface) {
     }
     ethernet_link_data *eth_data = (ethernet_link_data *)iface->link->ptcl_data;
     arp_packet *pkt = (arp_packet *)ret->buf;
-    pkt->hardware_type = iface->link->type;
-    pkt->protocol_type = ETH_AF_INET;
-    pkt->hardware_size = get_hw_size(pkt->hardware_type);
+    pkt->hardware_type = htons(iface->link->type);
+    pkt->protocol_type = htons(ETH_AF_INET);
+    pkt->hardware_size = htons(get_hw_size(pkt->hardware_type));
     pkt->protocol_size = sizeof(uint32_t);
-    pkt->operation = REQUEST;
+    pkt->operation = htons(REQUEST);
     memcpy(pkt->source_hw_address, eth_data->src_mac, sizeof(eth_data->src_mac));
-    pkt->source_ptcl_address = (uint32_t)(*(uint32_t *)farr_get_entry(iface->ipv4_address_list, 0));
+    pkt->source_ptcl_address = htonl((uint32_t)(*(uint32_t *)farr_get_entry(iface->ipv4_address_list, 0)));
     memset(pkt->target_hw_address, 0, sizeof(pkt->target_hw_address));
     pkt->target_ptcl_address = 0;
     return ret; 
 }
-
 
 /**
  * Broadcast on a network to find neighbours/peers
@@ -122,10 +124,17 @@ static buffer *new_arp_bc_packet(net_interface *iface) {
  *         Set errno on error.
  */
 uint64_t arp_find_neighbours(linked_list *table, net_interface *iface) {
-    buffer *pkt = new_arp_bc_packet(iface);
+    // buffer *pkt = new_arp_bc_packet(iface);
+    buffer *pkt = new_buffer(sizeof(ethernet_header));
     if (!pkt) {
         return 0;
     }
+    ethernet_header *hdr = pkt->buf;
+    memcpy(hdr->src, MAC_SRC, 6);
+    memset(hdr->dst, 0xFF, 6);
+    hdr->ptcl = htons(0x0800);
+    append_buffer(pkt, new_arp_bc_packet(iface));
+
     iface_tx(iface, pkt);
     free(pkt);
     buffer *response = iface_rx(iface, sizeof(arp_packet));

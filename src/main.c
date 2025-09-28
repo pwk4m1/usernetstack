@@ -15,7 +15,7 @@ ipv4_routing_table *table = 0;
 
 int main(void) {
     buffer *foo = new_buffer(32);
-    net_interface *iface = create_interface("test-iface", create_eth_link, NULL);
+    net_interface *iface = create_interface("test-iface", create_eth_link, "wlp2s0\0");
     iface->state = up;
 
     table = new_ipv4_route_table();
@@ -34,6 +34,7 @@ int main(void) {
     }
     linked_list *table = new_linked_list();
 
+    printf("ARP\n");
     uint64_t cnt = arp_find_neighbours(table, iface);
     printf("Got %lld\n", cnt);
     if (!cnt) {
