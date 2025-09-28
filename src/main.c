@@ -30,7 +30,6 @@ int main(void) {
 
     if (e) {
         printf("Found route: %p\n", e);
-        iface_tx(e->iface, foo);
     }
     linked_list *table = new_linked_list();
 

@@ -46,7 +46,8 @@
 #include "../../link.h"
 #include "../../../buffer/buffer.h"
 
-static const char *MAC_SRC = "\xe0\x9d\x31\x29\x22\xe0";
+//static const char *MAC_SRC = "\xe0\x9d\x31\x29\x22\xe0";
+static const char *MAC_SRC = "\x11\x22\x33\x44\x55\x66";
 
 typedef struct {
     char *name;

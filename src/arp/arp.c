@@ -40,7 +40,8 @@
 #include "../link/eth/eth.h"
 #include "../llist/llist.h"
 
-static const char *MAC_SRC = "\xe0\x9d\x31\x29\x22\xe0";
+// static const char *MAC_SRC = "\xe0\x9d\x31\x29\x22\xe0";
+static const char *MAC_SRC = "\x11\x22\x33\x44\x55\x66";
 
 /**
  * Helper to get appropriate hardware size for given type
@@ -123,6 +124,7 @@ static buffer *new_arp_bc_packet(net_interface *iface) {
  * @return uint64_t amount of neighbours found.
  *         Set errno on error.
  */
+#include <stdio.h>
 uint64_t arp_find_neighbours(linked_list *table, net_interface *iface) {
     // buffer *pkt = new_arp_bc_packet(iface);
     buffer *pkt = new_buffer(sizeof(ethernet_header));
@@ -132,8 +134,9 @@ uint64_t arp_find_neighbours(linked_list *table, net_interface *iface) {
     ethernet_header *hdr = pkt->buf;
     memcpy(hdr->src, MAC_SRC, 6);
     memset(hdr->dst, 0xFF, 6);
-    hdr->ptcl = htons(0x0800);
-    append_buffer(pkt, new_arp_bc_packet(iface));
+    hdr->ptcl = htons(0x0806);
+    pkt = append_buffer(pkt, new_arp_bc_packet(iface));
+    printf("Packet buffer: %d/%x bytes\n", pkt->len, pkt->len);
 
     iface_tx(iface, pkt);
     free(pkt);

@@ -44,14 +44,14 @@ enum ETH_TYPE {
 /**
  * Ethernet header structure.
  *
- * @param ptcl Is a protocol identifier word
  * @param src Is the source MAC address
  * @param dst Is the destination MAC address
+ * @param ptcl Is a protocol identifier word
  */
 typedef struct {
-    uint16_t ptcl;
     uint8_t src[6];
     uint8_t dst[6];
+    uint16_t ptcl;
 } ethernet_header;
 
 /**

@@ -111,7 +111,8 @@ static inline buffer *append_buffer(buffer *dst, buffer *src) {
     uint64_t old_len = dst->len;
     buffer *ret = resize_buffer(dst, (dst->len + src->len));
     if (ret) {
-        memcpy(src->buf, (dst->buf + old_len), src->len);
+        memcpy(ret->buf + old_len, src->buf, src->len);
+        ret->len = old_len + src->len;
     }
     return ret;
 }
