@@ -35,6 +35,7 @@
 #include <stdlib.h>
 
 #include "iface.h"
+#include "../flexarr/flex.h"
 #include "../link/link.h"
 
 /**
@@ -48,11 +49,25 @@ net_interface *create_interface(char *name, unet_link *(*create_link_function)(v
     }
     ret->name = name;
     ret->state = unknown;
+    ret->ipv4_address_list = new_flex_array(sizeof(uint32_t), 1);
+    ret->ipv6_address_list = new_flex_array((128 / sizeof(uint8_t)), 1);
     ret->link = create_link_function(link_data);
-    if (!ret->link) {
-        free(ret);
+
+    if (!ret->link || !ret->ipv4_address_list || !ret->ipv6_address_list) {
+        if (ret->link) {
+            free(ret->link);
+        }
+        if (ret->ipv4_address_list) {
+            free(ret->ipv4_address_list->data_array);
+            free(ret->ipv4_address_list);
+        }
+        if (ret->ipv6_address_list) {
+            free(ret->ipv6_address_list->data_array);
+            free(ret->ipv6_address_list);
+        }
         return NULL;
     }
+
     return ret;
 }
 

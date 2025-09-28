@@ -37,6 +37,7 @@
 #include <errno.h>
 #include <stdint.h>
 
+#include "../flexarr/flex.h"
 #include "../link/link.h"
 
 enum IFACE_STATE {
@@ -54,12 +55,16 @@ enum IFACE_STATE {
  * @member name is an ascii name for the interface
  * @member state is the state the network intrafece is in, refer to
  *         enum IFACE_STATE
+ * @member address_list Is a list of addresses associated with this
+ *         interface
  * @member link is a pointer to link/layer2 and platform specific 
  *         information structure
  */
 typedef struct {
     char *name;
     enum IFACE_STATE state;
+    flexible_array *ipv4_address_list;
+    flexible_array *ipv6_address_list;
     unet_link *link;
 } net_interface;
 

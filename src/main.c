@@ -1,10 +1,11 @@
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "arp/arp.h"
 #include "buffer/buffer.h"
-#include "flexarr/flex.h"
 #include "iface/iface.h"
 #include "link/eth/eth.h"
 #include "llist/llist.h"
@@ -31,26 +32,12 @@ int main(void) {
         printf("Found route: %p\n", e);
         iface_tx(e->iface, foo);
     }
+    linked_list *table = new_linked_list();
 
-    e = ipv4_get_route_to_host(0x1100);
-    printf("Got %p\n", e);
-
-    linked_list *arp_table = new_linked_list();
-    if (arp_table == NULL) {
-        fprintf(stderr, "No linked list for us :(\n");
-        return 1;
-    }
-
-    flexible_array *arr = new_flex_array(sizeof(uint32_t), 1);
-    farr_alloc(arr, 10);
-    uint32_t *d = (uint32_t *)arr->data_array;
-    for (uint32_t i = 0; i < 10; i++) {
-        d[i] = i;
-        printf("d[%d] at %p: %d\n", i, (void *)&d[i], d[i]);
-    }
-    farr_del_entry(arr, 3);
-    for (uint32_t i = 0; i < 10; i++) {
-        printf("d[%d] at %p: %d\n", i, (void *)&d[i], d[i]);
+    uint64_t cnt = arp_find_neighbours(table, iface);
+    printf("Got %lld\n", cnt);
+    if (!cnt) {
+        fprintf(stderr, "%d / %s\n", errno, strerror(errno));
     }
 
     return 0;

@@ -88,6 +88,32 @@ arp_cache_table_entry *add_arp_table_entry(linked_list *cache, net_interface *if
 }
 
 /**
+ * Helper to build broadcast packet for IPv4 for a given interface
+ *
+ * @param iface Is the network interface to work with
+ * @return a pointer to populated arp_packet structure
+ */
+static buffer *new_arp_bc_packet(net_interface *iface) {
+    buffer *ret = new_buffer(sizeof(arp_packet));
+    if (!ret) {
+        return NULL;
+    }
+    ethernet_link_data *eth_data = (ethernet_link_data *)iface->link->ptcl_data;
+    arp_packet *pkt = (arp_packet *)ret->buf;
+    pkt->hardware_type = iface->link->type;
+    pkt->protocol_type = ETH_AF_INET;
+    pkt->hardware_size = get_hw_size(pkt->hardware_type);
+    pkt->protocol_size = sizeof(uint32_t);
+    pkt->operation = REQUEST;
+    memcpy(pkt->source_hw_address, eth_data->src_mac, sizeof(eth_data->src_mac));
+    pkt->source_ptcl_address = (uint32_t)(*(uint32_t *)farr_get_entry(iface->ipv4_address_list, 0));
+    memset(pkt->target_hw_address, 0, sizeof(pkt->target_hw_address));
+    pkt->target_ptcl_address = 0;
+    return ret; 
+}
+
+
+/**
  * Broadcast on a network to find neighbours/peers
  *
  * @param table Is a pointer to allocated arp table
@@ -95,22 +121,27 @@ arp_cache_table_entry *add_arp_table_entry(linked_list *cache, net_interface *if
  * @return uint64_t amount of neighbours found.
  *         Set errno on error.
  */
-uint64_t arp_find_ipv4_neighbours(linked_list *table, net_interface *iface) {
-    if (iface->state == down) {
-        errno = ENETDOWN;
-        return 0;
-    }
-    ethernet_link_data *eth_data = (ethernet_link_data *)iface->link->ptcl_data;
-    arp_packet *pkt = new_arp_packet();
+uint64_t arp_find_neighbours(linked_list *table, net_interface *iface) {
+    buffer *pkt = new_arp_bc_packet(iface);
     if (!pkt) {
         return 0;
     }
-    pkt->hardware_type = iface->link->type;
-    pkt->protocol_type = ETH_AF_INET;
-    pkt->hardware_size = get_hw_size(pkt->hardware_type);
-    pkt->protocol_size = sizeof(uint32_t);
-    pkt->operation = REQUEST;
-    memcpy(pkt->source_hw_address, eth_data->src_mac, sizeof(eth_data->src_mac));
+    iface_tx(iface, pkt);
+    free(pkt);
+    buffer *response = iface_rx(iface, sizeof(arp_packet));
+    if (!response) {
+        return 0;
+    }
+    arp_packet *response_fields = (arp_packet *)response->buf;
+    if (response_fields->operation != RESPONSE) {
+        free(response);
+        errno = EPROTO;
+        return 0;
+    }
+    add_arp_table_entry(table, iface, response_fields->hardware_type,
+            response_fields->protocol_type, response_fields->source_hw_address,
+            response_fields->source_ptcl_address, true, false, 30);
+    free(response);
+    return 1;
 }
-
 
