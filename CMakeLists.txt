@@ -6,6 +6,9 @@ add_executable(unetlib
     src/main.c
     src/iface/iface.c
     src/route/route.c
+    src/llist/llist.c
+    src/arp/arp.c
+    src/flexarr/flex.c
 )
 
 add_subdirectory(src/link)
